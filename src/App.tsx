@@ -1,3 +1,5 @@
+import { SystemStatus } from './components/dashboard';
+
 const prototypeScreens = [
   { name: 'Apollo PACS', file: 'Apollo%20PACS.dc.html' },
   { name: 'Recepción', file: 'Recepcion.dc.html' },
@@ -22,6 +24,8 @@ function App() {
           flujos se migran gradualmente a componentes mantenibles.
         </p>
       </section>
+
+      <SystemStatus />
 
       <section className="screen-grid" aria-label="Pantallas del prototipo">
         {prototypeScreens.map((screen) => (
