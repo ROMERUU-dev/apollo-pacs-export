@@ -31,3 +31,7 @@ a { color: inherit; }
 .screen-card:hover { border-color: #7c6cff; transform: translateY(-2px); }
 .screen-card strong { font: 600 18px 'Space Grotesk', sans-serif; }
 .screen-card span { color: #8b7bff; font-size: 13px; font-weight: 600; }
+
+.resource-state { padding: 24px; border: 1px dashed #2a3140; border-radius: 14px; color: #8b93a3; text-align: center; }
+.resource-state--error { color: #e5675f; border-color: rgba(229, 103, 95, .45); }
+.resource-state button { margin-left: 12px; padding: 7px 12px; border: 1px solid #2a3140; border-radius: 8px; color: #e9ebf1; background: #1b202a; cursor: pointer; }
