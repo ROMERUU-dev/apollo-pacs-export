@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *{box-sizing:border-box;}
+    input,select,textarea{font-family:'Outfit',sans-serif;}
+    input::placeholder,textarea::placeholder{color:#5a6273;}
+    ::-webkit-scrollbar{width:9px;height:9px;}
+    ::-webkit-scrollbar-thumb{background:#262b35;border-radius:9px;}
+    ::-webkit-scrollbar-track{background:transparent;}
+  </style>
+  <script src="./store.js"></script>
+</helmet>
+
+<div style="position:relative; width:100%; min-height:760px; background:#0e1116; color:#e9ebf1; font-family:'Outfit',system-ui,sans-serif; display:flex; flex-direction:column; overflow:hidden;">
+
+  <!-- ===== sub-tab header ===== -->
+  <div style="display:flex; align-items:center; gap:18px; padding:15px 22px; border-bottom:1px solid #1e222b; flex-shrink:0;">
+    <div style="font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:18px;">Recepción</div>
+    <div style="display:flex; gap:4px; padding:4px; border-radius:11px; background:#12151c; border:1px solid #1e222b;">
+      <div onClick="{{ goCatalogo }}" style="{{ tab.catalogo }}">Catálogo</div>
+      <div onClick="{{ goWorklist }}" style="{{ tab.worklist }}">Worklist</div>
+      <div onClick="{{ goOrdenes }}" style="{{ tab.ordenes }}">Órdenes</div>
+      <div onClick="{{ goCaja }}" style="{{ tab.caja }}">Caja</div>
+    </div>
+    <div style="flex:1;"></div>
+    <sc-if value="{{ isCatalogo }}" hint-placeholder-val="{{ true }}">
+      <div onClick="{{ openAlta }}" style="display:flex; align-items:center; gap:8px; padding:9px 15px; border-radius:11px; font-size:13px; font-weight:600; background:#1b202a; color:#cdd3df; border:1px solid #2a3140; cursor:pointer;"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 3v10M3 8h10" stroke="#cdd3df" stroke-width="1.5" stroke-linecap="round"/></svg>Dar de alta estudio</div>
+    </sc-if>
+    <sc-if value="{{ cajaIsOpen }}" hint-placeholder-val="{{ false }}">
+      <div style="display:inline-flex; align-items:center; gap:8px; padding:8px 14px; border-radius:999px; background:rgba(62,207,142,0.1); border:1px solid rgba(62,207,142,0.3);">
+        <span style="width:7px; height:7px; border-radius:999px; background:#3ecf8e;"></span>
+        <span style="font-size:12px; color:#8b93a3;">Efectivo en caja</span>
+        <span style="font-size:13px; font-weight:700; color:#3ecf8e; font-family:'JetBrains Mono',monospace;">{{ efectivoFmt }}</span>
+      </div>
+    </sc-if>
+    <div onClick="{{ openEmpresa }}" title="Configuración de la empresa" style="width:36px; height:36px; border-radius:10px; background:#1b202a; border:1px solid #2a3140; display:flex; align-items:center; justify-content:center; cursor:pointer;"><svg width="17" height="17" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="2.2" stroke="#cdd3df" stroke-width="1.3"/><path d="M8 1.5v1.7M8 12.8v1.7M14.5 8h-1.7M3.2 8H1.5M12.6 3.4l-1.2 1.2M4.6 11.4l-1.2 1.2M12.6 12.6l-1.2-1.2M4.6 4.6L3.4 3.4" stroke="#cdd3df" stroke-width="1.3" stroke-linecap="round"/></svg></div>
+  </div>
+
+  <!-- ===================== CATALOGO ===================== -->
+  <sc-if value="{{ isCatalogo }}" hint-placeholder-val="{{ true }}">
+    <div style="display:grid; grid-template-columns:1fr 360px; flex:1; min-height:0;">
+
+      <!-- studies -->
+      <div style="padding:18px 22px; overflow:auto; max-height:704px;">
+        <div style="display:flex; align-items:center; gap:9px; padding:10px 14px; border-radius:11px; background:#12151c; border:1px solid #20242d; margin-bottom:16px;">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5" stroke="#646c7d" stroke-width="1.4"/><path d="M10.8 10.8L14.5 14.5" stroke="#646c7d" stroke-width="1.4" stroke-linecap="round"/></svg>
+          <input value="{{ q }}" onChange="{{ onQ }}" placeholder="Nombre de estudio" style="flex:1; background:transparent; border:none; outline:none; color:#e9ebf1; font-size:13.5px;" />
+        </div>
+        <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(270px,1fr)); gap:14px;">
+          <sc-for list="{{ cat }}" as="s" hint-placeholder-count="6">
+            <div style="{{ s.cardStyle }}">
+              <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:10px;">
+                <div style="font-weight:700; font-size:13.5px; letter-spacing:0.01em; line-height:1.3;">{{ s.name }}</div>
+                <div onClick="{{ s.toggle }}" style="{{ s.addStyle }}">{{ s.addLabel }}</div>
+              </div>
+              <div style="display:flex; align-items:center; justify-content:space-between; margin-top:18px;">
+                <span style="padding:3px 9px; border-radius:6px; font-size:11px; font-weight:700; color:#c9c2ff; background:rgba(124,108,255,0.12); border:1px solid rgba(124,108,255,0.25); font-family:'JetBrains Mono',monospace;">{{ s.mod }}</span>
+                <span style="font-family:'JetBrains Mono',monospace; font-weight:600; font-size:16px;">{{ s.priceFmt }}</span>
+              </div>
+              <div style="font-size:12px; color:#8b93a3; margin-top:14px;">Indicaciones para estudio:</div>
+              <div style="font-size:11.5px; color:#646c7d; margin-top:2px;">No requiere preparación previa</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <!-- cotizador -->
+      <div style="border-left:1px solid #1e222b; background:#0c0e13; display:flex; flex-direction:column; max-height:704px;">
+        <div style="padding:16px 18px; border-bottom:1px solid #1e222b; display:flex; align-items:center; justify-content:space-between;">
+          <div style="font-size:11px; font-weight:700; letter-spacing:0.12em; color:#8b7bff; text-transform:uppercase;">Cotizador</div>
+          <span style="font-size:12px; color:#8b93a3; font-family:'JetBrains Mono',monospace;">{{ cartCount }} estudios</span>
+        </div>
+
+        <sc-if value="{{ cartEmpty }}" hint-placeholder-val="{{ true }}">
+          <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; padding:30px; text-align:center; color:#4a5263;">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none"><path d="M3 4h2l2.4 12h9.2l1.8-8H6.2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="20" r="1.2" fill="currentColor"/><circle cx="17" cy="20" r="1.2" fill="currentColor"/></svg>
+            <div style="font-size:13px; line-height:1.5;">Agrega estudios con <b style="color:#8b93a3;">+</b><br>para armar la cotización</div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ cartHas }}" hint-placeholder-val="{{ false }}">
+          <div style="flex:1; overflow:auto; padding:14px 16px; display:flex; flex-direction:column; gap:10px;">
+            <sc-for list="{{ cartItems }}" as="c" hint-placeholder-count="2">
+              <div style="border:1px solid #232834; background:#161a22; border-radius:12px; padding:12px 13px;">
+                <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:10px;">
+                  <div style="font-weight:600; font-size:13px; line-height:1.3;">{{ c.name }}</div>
+                  <div onClick="{{ c.remove }}" style="width:22px; height:22px; border-radius:6px; background:#1b202a; border:1px solid #2a3140; display:flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0;"><svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M3 3l6 6M9 3l-6 6" stroke="#e5675f" stroke-width="1.4" stroke-linecap="round"/></svg></div>
+                </div>
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-top:9px;">
+                  <span style="padding:2px 7px; border-radius:5px; font-size:10px; font-weight:700; color:#c9c2ff; background:rgba(124,108,255,0.12); border:1px solid rgba(124,108,255,0.25); font-family:'JetBrains Mono',monospace;">{{ c.mod }}</span>
+                  <span style="font-family:'JetBrains Mono',monospace; font-weight:600; font-size:13.5px;">{{ c.priceFmt }}</span>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="padding:16px 18px; border-top:1px solid #1e222b;">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+              <span style="font-size:13px; color:#8b93a3;">Total</span>
+              <span style="font-family:'JetBrains Mono',monospace; font-weight:700; font-size:22px;">{{ cartTotalFmt }}</span>
+            </div>
+            <sc-if value="{{ sent }}" hint-placeholder-val="{{ false }}">
+              <div style="margin-bottom:11px; display:flex; align-items:center; gap:8px; padding:9px 12px; border-radius:10px; background:rgba(62,207,142,0.12); border:1px solid rgba(62,207,142,0.35); font-size:12.5px; color:#3ecf8e; font-weight:600;"><svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M3 8.5l3.2 3L13 5" stroke="#3ecf8e" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Cotización enviada · {{ sentLabel }}</div>
+            </sc-if>
+            <div onClick="{{ imprimirCot }}" style="display:flex; align-items:center; justify-content:center; gap:8px; padding:11px; border-radius:11px; font-size:12.5px; font-weight:600; background:#12151c; color:#9aa3b4; border:1px solid #262b35; cursor:pointer; margin-bottom:9px;"><svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M4 6V2.5h8V6M4 12H2.5V6.5h11V12H12M4 9.5h8V14H4z" stroke="#9aa3b4" stroke-width="1.2" stroke-linejoin="round"/></svg>Imprimir cotización (ticket)</div>
+            <div style="display:flex; gap:9px;">
+              <div onClick="{{ enviarCot }}" style="flex:1; text-align:center; padding:12px; border-radius:11px; font-size:13px; font-weight:600; background:#1b202a; color:#cdd3df; border:1px solid #2a3140; cursor:pointer;">Enviar cotización</div>
+              <div onClick="{{ openPatient }}" style="flex:1; text-align:center; padding:12px; border-radius:11px; font-size:13px; font-weight:600; background:#7c6cff; color:#fff; cursor:pointer; box-shadow:0 4px 14px rgba(124,108,255,0.3);">Generar órdenes</div>
+            </div>
+          </div>
+        </sc-if>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ===================== ORDENES ===================== -->
+  <sc-if value="{{ isOrdenes }}" hint-placeholder-val="{{ false }}">
+    <div style="padding:18px 22px; overflow:auto; max-height:760px;">
+      <div style="display:flex; align-items:center; gap:9px; padding:10px 14px; border-radius:11px; background:#12151c; border:1px solid #20242d; margin-bottom:16px; max-width:380px;">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5" stroke="#646c7d" stroke-width="1.4"/><path d="M10.8 10.8L14.5 14.5" stroke="#646c7d" stroke-width="1.4" stroke-linecap="round"/></svg>
+        <input value="{{ oq }}" onChange="{{ onOQ }}" placeholder="Paciente o estudio" style="flex:1; background:transparent; border:none; outline:none; color:#e9ebf1; font-size:13.5px;" />
+      </div>
+      <div style="border:1px solid #232834; border-radius:14px; overflow:hidden;">
+        <div style="display:grid; grid-template-columns:2fr 1.4fr 1fr 1fr 1.1fr 1fr; gap:12px; padding:13px 18px; font-size:11px; font-weight:700; letter-spacing:0.05em; color:#646c7d; text-transform:uppercase; background:#12151c; border-bottom:1px solid #1c2029;">
+          <div>Paciente</div><div>Estudio</div><div>Sucursal</div><div>Prioridad</div><div>Fecha orden</div><div>Estatus</div>
+        </div>
+        <sc-for list="{{ ordersV }}" as="o" hint-placeholder-count="5">
+          <div style="display:grid; grid-template-columns:2fr 1.4fr 1fr 1fr 1.1fr 1fr; gap:12px; align-items:center; padding:14px 18px; border-bottom:1px solid #1c2029;">
+            <div style="min-width:0;"><div style="font-weight:600; font-size:13.5px;">{{ o.paciente }}</div><div style="font-size:11.5px; color:#646c7d; font-family:'JetBrains Mono',monospace; margin-top:2px;">Folio {{ o.folio }}</div></div>
+            <div><div style="font-size:13px;">{{ o.estudio }}</div><span style="display:inline-block; margin-top:4px; padding:1px 7px; border-radius:5px; font-size:10px; font-weight:700; color:#c9c2ff; background:rgba(124,108,255,0.12); border:1px solid rgba(124,108,255,0.25); font-family:'JetBrains Mono',monospace;">{{ o.mod }}</span></div>
+            <div style="font-size:13px; color:#8b93a3;">{{ o.sucursal }}</div>
+            <div><span style="{{ o.prioStyle }}">{{ o.prioridad }}</span></div>
+            <div style="font-size:12.5px; color:#8b93a3; font-family:'JetBrains Mono',monospace;">{{ o.fecha }}</div>
+            <div><span style="{{ o.estStyle }}"><span style="{{ o.estDot }}"></span>{{ o.estatus }}</span></div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ===================== WORKLIST ===================== -->
+  <sc-if value="{{ isWorklist }}" hint-placeholder-val="{{ false }}">
+    <div style="padding:18px 22px; overflow:auto; max-height:760px;">
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:14px; margin-bottom:16px; flex-wrap:wrap;">
+        <div>
+          <div style="font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:17px;">Lista de trabajo</div>
+          <div style="font-size:12.5px; color:#8b93a3; margin-top:2px;">Compartida con la estación del técnico · estudios del día</div>
+        </div>
+        <div style="display:flex; align-items:center; gap:9px; padding:10px 14px; border-radius:11px; background:#12151c; border:1px solid #20242d; min-width:280px;">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5" stroke="#646c7d" stroke-width="1.4"/><path d="M10.8 10.8L14.5 14.5" stroke="#646c7d" stroke-width="1.4" stroke-linecap="round"/></svg>
+          <input value="{{ wq }}" onChange="{{ onWQ }}" placeholder="Paciente, ID o estudio" style="flex:1; background:transparent; border:none; outline:none; color:#e9ebf1; font-size:13.5px;" />
+        </div>
+      </div>
+      <div style="border:1px solid #232834; border-radius:14px; overflow:hidden;">
+        <div style="display:grid; grid-template-columns:2fr 1fr 1.4fr 0.8fr 1.2fr 0.7fr; gap:12px; padding:13px 18px; font-size:11px; font-weight:700; letter-spacing:0.05em; color:#646c7d; text-transform:uppercase; background:#12151c; border-bottom:1px solid #1c2029;">
+          <div>Paciente</div><div>Modalidad</div><div>Estudio</div><div>Hora</div><div>Estado</div><div style="text-align:right;">Acción</div>
+        </div>
+        <sc-if value="{{ wlHas }}" hint-placeholder-val="{{ true }}">
+          <sc-for list="{{ worklistV }}" as="w" hint-placeholder-count="5">
+            <div style="display:grid; grid-template-columns:2fr 1fr 1.4fr 0.8fr 1.2fr 0.7fr; gap:12px; align-items:center; padding:14px 18px; border-bottom:1px solid #1c2029;">
+              <div style="min-width:0;"><div style="font-weight:600; font-size:13.5px;">{{ w.pac }}</div><div style="font-size:11.5px; color:#646c7d; font-family:'JetBrains Mono',monospace; margin-top:2px;">{{ w.id }} · {{ w.edad }} años</div></div>
+              <div><span style="padding:2px 8px; border-radius:6px; font-size:11px; font-weight:700; color:#c9c2ff; background:rgba(124,108,255,0.12); border:1px solid rgba(124,108,255,0.25); font-family:'JetBrains Mono',monospace;">{{ w.mod }}</span></div>
+              <div style="font-size:13px;">{{ w.est }}</div>
+              <div style="font-size:12.5px; color:#8b93a3; font-family:'JetBrains Mono',monospace;">{{ w.hora }}</div>
+              <div><span style="{{ w.badge.style }}"><span style="{{ w.badge.dot }}"></span>{{ w.badge.label }}</span><sc-if value="{{ w.fueraEquipo }}" hint-placeholder-val="{{ false }}"><div style="font-size:10px; color:#646c7d; margin-top:4px; font-family:'JetBrains Mono',monospace;">Fuera de equipo</div></sc-if></div>
+              <div style="display:flex; justify-content:flex-end;">
+                <div onClick="{{ w.del }}" title="Eliminar estudio" style="width:32px; height:32px; border-radius:9px; background:rgba(229,103,95,0.1); border:1px solid rgba(229,103,95,0.35); display:flex; align-items:center; justify-content:center; cursor:pointer;"><svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.5h5.8l.6-8.5" stroke="#e5675f" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+              </div>
+            </div>
+          </sc-for>
+        </sc-if>
+        <sc-if value="{{ wlEmpty }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:36px; text-align:center; color:#4a5263; font-size:13px;">No hay estudios en la worklist</div>
+        </sc-if>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ===================== CAJA ===================== -->
+  <sc-if value="{{ isCaja }}" hint-placeholder-val="{{ false }}">
+
+    <sc-if value="{{ cajaClosed }}" hint-placeholder-val="{{ true }}">
+      <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px; padding:40px; text-align:center;">
+        <div style="width:74px; height:74px; border-radius:20px; background:#161a22; border:1px solid #2a3140; display:flex; align-items:center; justify-content:center;"><svg width="34" height="34" viewBox="0 0 24 24" fill="none"><rect x="3" y="6" width="18" height="13" rx="2" stroke="#646c7d" stroke-width="1.4"/><path d="M3 10h18M7 15h3" stroke="#646c7d" stroke-width="1.4" stroke-linecap="round"/></svg></div>
+        <div>
+          <div style="font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:22px;">Caja cerrada</div>
+          <div style="font-size:14px; color:#8b93a3; margin-top:6px;">Abre la caja con un fondo inicial para empezar a cobrar.</div>
+        </div>
+        <div onClick="{{ openCaja }}" style="display:flex; align-items:center; gap:9px; padding:13px 24px; border-radius:12px; font-size:14px; font-weight:600; background:#7c6cff; color:#fff; cursor:pointer; box-shadow:0 6px 20px rgba(124,108,255,0.32);"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="5" width="12" height="9" rx="1.5" stroke="#fff" stroke-width="1.4"/><path d="M2 8h12M6 11h2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/></svg>Abrir caja</div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ cajaIsOpen }}" hint-placeholder-val="{{ false }}">
+      <!-- status strip -->
+      <div style="display:flex; align-items:center; gap:24px; padding:14px 22px; border-bottom:1px solid #1e222b; flex-wrap:wrap;">
+        <div style="display:inline-flex; align-items:center; gap:8px;"><span style="width:8px; height:8px; border-radius:999px; background:#3ecf8e;"></span><span style="font-weight:600; font-size:14px;">Caja abierta</span></div>
+        <div style="font-size:12.5px; color:#8b93a3;">Apertura <b style="color:#cdd3df; font-family:'JetBrains Mono',monospace;">{{ apertura }}</b></div>
+        <div style="font-size:12.5px; color:#8b93a3;">Fondo inicial <b style="color:#cdd3df; font-family:'JetBrains Mono',monospace;">{{ fondoFmt }}</b></div>
+        <div style="font-size:12.5px; color:#8b93a3;">Efectivo en caja <b style="color:#3ecf8e; font-family:'JetBrains Mono',monospace;">{{ efectivoFmt }}</b></div>
+        <div style="flex:1;"></div>
+        <div onClick="{{ openCashIn }}" style="display:flex; align-items:center; gap:6px; padding:8px 13px; border-radius:9px; font-size:12.5px; font-weight:600; background:#1b202a; color:#3ecf8e; border:1px solid rgba(62,207,142,0.3); cursor:pointer;">＋ Entrada</div>
+        <div onClick="{{ openCashOut }}" style="display:flex; align-items:center; gap:6px; padding:8px 13px; border-radius:9px; font-size:12.5px; font-weight:600; background:#1b202a; color:#e5675f; border:1px solid rgba(229,103,95,0.3); cursor:pointer;">－ Egreso</div>
+        <div onClick="{{ abrirCajon }}" title="Envía el pulso a la impresora para destrabar el cajón" style="display:flex; align-items:center; gap:7px; padding:8px 13px; border-radius:9px; font-size:12.5px; font-weight:600; background:#1b202a; color:#c9c2ff; border:1px solid rgba(124,108,255,0.4); cursor:pointer;"><svg width="15" height="15" viewBox="0 0 16 16" fill="none"><rect x="2" y="6" width="12" height="7" rx="1.4" stroke="#c9c2ff" stroke-width="1.3"/><path d="M2 9h12M6.5 11.2h3" stroke="#c9c2ff" stroke-width="1.3" stroke-linecap="round"/><path d="M8 6V2.5M5.6 3.4L8 2l2.4 1.4" stroke="#c9c2ff" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>Abrir cajón</div>
+        <div onClick="{{ cerrarCaja }}" style="padding:8px 13px; border-radius:9px; font-size:12.5px; font-weight:600; background:#1b202a; color:#cdd3df; border:1px solid #2a3140; cursor:pointer;">Cerrar caja (corte)</div>
+      </div>
+
+      <div style="display:grid; grid-template-columns:1.35fr 1fr; flex:1; min-height:0;">
+        <!-- left: listos + movimientos -->
+        <div style="border-right:1px solid #1e222b; padding:18px 20px; overflow:auto; max-height:660px;">
+          <div style="font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:16px; margin-bottom:4px;">Estudios listos para cobrar</div>
+          <div style="font-size:12.5px; color:#8b93a3; margin-bottom:14px;">Selecciona un estudio para registrar el pago</div>
+          <sc-if value="{{ porCobrarHas }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex; flex-direction:column; gap:10px;">
+              <sc-for list="{{ porCobrar }}" as="o" hint-placeholder-count="3">
+                <div onClick="{{ o.select }}" style="{{ o.rowStyle }}">
+                  <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+                    <div style="min-width:0;">
+                      <div style="font-weight:600; font-size:13.5px;">{{ o.paciente }}</div>
+                      <div style="font-size:12px; color:#8b93a3; margin-top:2px;">{{ o.estudio }} · <span style="font-family:'JetBrains Mono',monospace;">{{ o.folio }}</span></div>
+                    </div>
+                    <div style="text-align:right; flex-shrink:0;"><div style="font-family:'JetBrains Mono',monospace; font-weight:700; font-size:15px;">{{ o.priceFmt }}</div></div>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+          <sc-if value="{{ porCobrarEmpty }}" hint-placeholder-val="{{ false }}">
+            <div style="padding:30px; text-align:center; color:#4a5263; font-size:13px;">No hay estudios pendientes de cobro</div>
+          </sc-if>
+
+          <div style="font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:15px; margin:26px 0 12px;">Movimientos de efectivo</div>
+          <div style="border:1px solid #232834; border-radius:12px; overflow:hidden;">
+            <sc-for list="{{ movsV }}" as="m" hint-placeholder-count="2">
+              <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:11px 14px; border-bottom:1px solid #1c2029;">
+                <div style="min-width:0;"><div style="font-size:13px; font-weight:500;">{{ m.label }}</div><div style="font-size:11px; color:#646c7d; font-family:'JetBrains Mono',monospace; margin-top:1px;">{{ m.hora }}</div></div>
+                <div style="font-family:'JetBrains Mono',monospace; font-weight:600; font-size:13.5px; color:{{ m.color }};">{{ m.montoFmt }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <!-- right: cobro -->
+        <div style="padding:18px 20px; overflow:auto; max-height:660px;">
+          <sc-if value="{{ cobroSel }}" hint-placeholder-val="{{ false }}">
+            <div style="font-size:11px; font-weight:700; letter-spacing:0.1em; color:#8b7bff; text-transform:uppercase;">Cobro de estudio</div>
+            <div style="border:1px solid #232834; background:#161a22; border-radius:14px; padding:16px; margin-top:12px;">
+              <div style="font-weight:600; font-size:15px;">{{ cobro.paciente }}</div>
+              <div style="font-size:12.5px; color:#8b93a3; margin-top:3px;">{{ cobro.estudio }} · <span style="font-family:'JetBrains Mono',monospace;">{{ cobro.folio }}</span></div>
+              <div style="display:flex; align-items:center; justify-content:space-between; margin-top:14px; padding-top:14px; border-top:1px solid #232834;">
+                <span style="font-size:13px; color:#8b93a3;">Total a cobrar</span>
+                <span style="font-family:'JetBrains Mono',monospace; font-weight:700; font-size:22px;">{{ cobro.priceFmt }}</span>
+              </div>
+            </div>
+
+            <!-- pay method tabs -->
+            <div style="display:flex; gap:4px; padding:4px; border-radius:11px; background:#12151c; border:1px solid #1e222b; margin-top:16px;">
+              <div onClick="{{ payEfectivo }}" style="{{ payTab.efectivo }}">Efectivo</div>
+              <div onClick="{{ payTarjeta }}" style="{{ payTab.tarjeta }}">Tarjeta</div>
+            </div>
+
+            <sc-if value="{{ payIsEfectivo }}" hint-placeholder-val="{{ true }}">
+              <div style="margin-top:16px; display:grid; grid-template-columns:1fr 1fr; gap:14px;">
+                <div>
+                  <div style="font-size:11px; font-weight:600; color:#8b93a3; margin-bottom:6px;">Monto recibido</div>
+                  <input value="{{ recibido }}" onChange="{{ setRecibido }}" placeholder="0.00" style="width:100%; padding:11px 13px; border-radius:10px; background:#0e1116; border:1px solid #2a3140; color:#e9ebf1; font-size:15px; font-family:'JetBrains Mono',monospace; outline:none;" />
+                </div>
+                <div>
+                  <div style="font-size:11px; font-weight:600; color:#8b93a3; margin-bottom:6px;">Cambio</div>
+                  <div style="width:100%; padding:11px 13px; border-radius:10px; background:#0a0c10; border:1px solid #20242d; font-size:15px; font-family:'JetBrains Mono',monospace; color:{{ cambioColor }};">{{ cambioFmt }}</div>
+                </div>
+              </div>
+            </sc-if>
+            <sc-if value="{{ payIsTarjeta }}" hint-placeholder-val="{{ false }}">
+              <div style="margin-top:16px; border:1px dashed #2a3140; border-radius:12px; padding:16px; display:flex; align-items:center; gap:12px; background:#0e1116;">
+                <svg width="30" height="30" viewBox="0 0 24 24" fill="none"><rect x="2" y="5" width="20" height="14" rx="2" stroke="#8b7bff" stroke-width="1.4"/><path d="M2 9h20" stroke="#8b7bff" stroke-width="1.4"/><path d="M5 14h4" stroke="#8b7bff" stroke-width="1.4" stroke-linecap="round"/></svg>
+                <div><div style="font-size:13.5px; font-weight:600;">Terminal bancaria</div><div style="font-size:12px; color:#8b93a3; margin-top:2px;">Inserta o acerca la tarjeta al registrar el pago.</div></div>
+              </div>
+            </sc-if>
+
+            <!-- factura -->
+            <div style="margin-top:18px; border-top:1px solid #1e222b; padding-top:16px;">
+              <div onClick="{{ toggleFactura }}" style="display:flex; align-items:center; gap:10px; cursor:pointer;">
+                <div style="{{ checkStyle }}"><sc-if value="{{ factura }}" hint-placeholder-val="{{ false }}"><svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M2 6.2l2.4 2.3L10 3" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></sc-if></div>
+                <span style="font-size:13.5px; font-weight:600;">Requiere factura</span>
+                <span style="font-size:11.5px; color:#646c7d;">— se almacenan los datos fiscales del paciente</span>
+              </div>
+
+              <sc-if value="{{ factura }}" hint-placeholder-val="{{ false }}">
+                <div style="margin-top:14px; display:flex; flex-direction:column; gap:12px;">
+                  <div style="display:grid; grid-template-columns:1fr 1.4fr; gap:12px;">
+                    <div><div style="font-size:11px; font-weight:600; color:#8b93a3; margin-bottom:5px;">RFC</div><input value="{{ fact.rfc }}" onChange="{{ setF.rfc }}" placeholder="XAXX010101000" style="{{ inp }}" /></div>
+                    <div><div style="font-size:11px; font-weight:600; color:#8b93a3; margin-bottom:5px;">Razón social</div><input value="{{ fact.razon }}" onChange="{{ setF.razon }}" placeholder="Nombre o razón social" style="{{ inp }}" /></div>
+                  </div>
+                  <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                    <div><div style="font-size:11px; font-weight:600; color:#8b93a3; margin-bottom:5px;">Régimen fiscal</div>
+                      <select value="{{ fact.regimen }}" onChange="{{ setF.regimen }}" style="{{ inp }}"><option value="">Elige una opción</option><sc-for list="{{ regimenOpts }}" as="r" hint-placeholder-count="3"><option value="{{ r }}">{{ r }}</option></sc-for></select>
+                    </div>
+                    <div><div style="font-size:11px; font-weight:600; color:#8b93a3; margin-bottom:5px;">Uso de CFDI</div>
+                      <select value="{{ fact.uso }}" onChange="{{ setF.uso }}" style="{{ inp }}"><option value="">Elige una opción</option><sc-for list="{{ usoOpts }}" as="u" hint-placeholder-count="3"><option value="{{ u }}">{{ u }}</option></sc-for></select>
+                    </div>
+                  </div>
+                  <div style="display:grid; grid-template-columns:1fr 1.6fr; gap:12px;">
+                    <div><div style="font-size:11px; font-weight:600; color:#8b93a3; margin-bottom:5px;">Código postal</div><input value="{{ fact.cp }}" onChange="{{ setF.cp }}" placeholder="83550" style="{{ inp }}" /></div>
+                    <div><div style="font-size:11px; font-weight:600; color:#8b93a3; margin-bottom:5px;">Correo para factura</div><input value="{{ fact.correo }}" onChange="{{ setF.correo }}" placeholder="correo@dominio.com" style="{{ inp }}" /></div>
+                  </div>
+                  <div style="font-size:11px; color:#646c7d; font-family:'JetBrains Mono',monospace;">solo se almacenan los datos · no se timbra el CFDI</div>
+                </div>
+              </sc-if>
+            </div>
+
+            <div onClick="{{ cobrar }}" style="{{ cobrarStyle }}"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 4h10v8H3zM3 7h10M5 10h2" stroke="#fff" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>{{ cobrarLabel }}</div>
+          </sc-if>
+
+          <sc-if value="{{ cobroNone }}" hint-placeholder-val="{{ true }}">
+            <div style="height:100%; min-height:420px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; color:#4a5263; text-align:center;">
+              <svg width="46" height="46" viewBox="0 0 24 24" fill="none"><path d="M12 2v4M12 18v4M2 12h4M18 12h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="1.3"/></svg>
+              <div style="font-size:14px;">Selecciona un estudio de la lista<br>para registrar el cobro</div>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+    </sc-if>
+  </sc-if>
+
+  <!-- ===================== OVERLAY: formulario paciente ===================== -->
+  <sc-if value="{{ showPatient }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute; inset:0; z-index:40; background:#0e1116; display:grid; grid-template-columns:1fr 340px;">
+      <div style="padding:22px 26px; overflow:auto;">
+        <div onClick="{{ closePatient }}" style="display:inline-flex; align-items:center; gap:7px; font-size:13.5px; font-weight:600; color:#8b7bff; cursor:pointer; margin-bottom:18px;"><svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M10 3l-5 5 5 5" stroke="#8b7bff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Regresar</div>
+        <div style="font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:21px;">Creación de órdenes de estudio</div>
+        <div style="font-size:13.5px; color:#8b93a3; margin-top:6px;">Información del paciente · los campos marcados con <span style="color:#e5675f;">*</span> son obligatorios</div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:22px;">
+          <div><div style="{{ lbl }}">Canal de venta</div>
+            <select value="{{ patient.canal }}" onChange="{{ setP.canal }}" style="{{ inp }}"><option value="">Elige una opción</option><sc-for list="{{ canalOpts }}" as="o" hint-placeholder-count="3"><option value="{{ o }}">{{ o }}</option></sc-for></select>
+          </div>
+          <div><div style="{{ lbl }}">ID de paciente</div><input value="{{ patient.idPac }}" onChange="{{ setP.idPac }}" placeholder="Folio interno (opcional)" style="{{ inp }}" /></div>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; margin-top:16px;">
+          <div><div style="{{ lbl }}">Nombre(s) <span style="color:#e5675f;">*</span></div><input value="{{ patient.nombre }}" onChange="{{ setP.nombre }}" placeholder="Nombres del paciente" style="{{ inp }}" /></div>
+          <div><div style="{{ lbl }}">Primer apellido <span style="color:#e5675f;">*</span></div><input value="{{ patient.apPaterno }}" onChange="{{ setP.apPaterno }}" placeholder="Apellido paterno" style="{{ inp }}" /></div>
+          <div><div style="{{ lbl }}">Apellido materno</div><input value="{{ patient.apMaterno }}" onChange="{{ setP.apMaterno }}" placeholder="Apellido materno" style="{{ inp }}" /></div>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:16px;">
+          <div><div style="{{ lbl }}">Fecha de nacimiento <span style="color:#e5675f;">*</span></div><input value="{{ patient.fnac }}" onChange="{{ setP.fnac }}" type="date" style="{{ inp }}" /></div>
+          <div><div style="{{ lbl }}">Sexo <span style="color:#e5675f;">*</span></div>
+            <select value="{{ patient.sexo }}" onChange="{{ setP.sexo }}" style="{{ inp }}"><option value="">Elige una opción</option><sc-for list="{{ sexoOpts }}" as="o" hint-placeholder-count="2"><option value="{{ o }}">{{ o }}</option></sc-for></select>
+          </div>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:16px;">
+          <div><div style="{{ lbl }}">Teléfono</div><input value="{{ patient.tel }}" onChange="{{ setP.tel }}" placeholder="(XX) XXXX XXXX" style="{{ inp }}" /></div>
+          <div><div style="{{ lbl }}">Correo electrónico</div><input value="{{ patient.correo }}" onChange="{{ setP.correo }}" placeholder="correo@dominio.com" style="{{ inp }}" /></div>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; margin-top:16px;">
+          <div><div style="{{ lbl }}">Estado</div><input value="{{ patient.estado }}" onChange="{{ setP.estado }}" style="{{ inp }}" /></div>
+          <div><div style="{{ lbl }}">Ciudad</div><input value="{{ patient.ciudad }}" onChange="{{ setP.ciudad }}" style="{{ inp }}" /></div>
+          <div><div style="{{ lbl }}">Código postal</div><input value="{{ patient.cp }}" onChange="{{ setP.cp }}" placeholder="000000" style="{{ inp }}" /></div>
+        </div>
+        <div style="display:grid; grid-template-columns:1.6fr 1fr; gap:16px; margin-top:16px;">
+          <div><div style="{{ lbl }}">Calle y núm. ext e int.</div><input value="{{ patient.calle }}" onChange="{{ setP.calle }}" placeholder="Calle, No. Ext y No. Int" style="{{ inp }}" /></div>
+          <div><div style="{{ lbl }}">Colonia</div><input value="{{ patient.colonia }}" onChange="{{ setP.colonia }}" placeholder="Colonia" style="{{ inp }}" /></div>
+        </div>
+      </div>
+
+      <!-- summary rail -->
+      <div style="border-left:1px solid #1e222b; background:#0c0e13; padding:22px 20px; display:flex; flex-direction:column;">
+        <div style="font-size:12.5px; color:#8b93a3; margin-bottom:16px;">Estudios en esta orden</div>
+        <div style="flex:1; overflow:auto; display:flex; flex-direction:column; gap:9px;">
+          <sc-for list="{{ cartItems }}" as="c" hint-placeholder-count="2">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:11px 13px; border:1px solid #232834; background:#161a22; border-radius:11px;">
+              <div style="min-width:0;"><div style="font-size:12.5px; font-weight:600;">{{ c.name }}</div><span style="font-size:10px; color:#646c7d; font-family:'JetBrains Mono',monospace;">{{ c.mod }}</span></div>
+              <span style="font-family:'JetBrains Mono',monospace; font-weight:600; font-size:13px;">{{ c.priceFmt }}</span>
+            </div>
+          </sc-for>
+        </div>
+        <div style="border-top:1px solid #1e222b; padding-top:16px; margin-top:14px;">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;"><span style="font-size:12.5px; color:#8b93a3;">Total a pagar</span><span style="font-family:'JetBrains Mono',monospace; font-weight:700; font-size:20px;">{{ cartTotalFmt }}</span></div>
+          <div onClick="{{ generarOrdenes }}" style="text-align:center; padding:13px; border-radius:12px; font-size:14px; font-weight:600; background:#7c6cff; color:#fff; cursor:pointer; box-shadow:0 4px 14px rgba(124,108,255,0.3);">Generar órdenes</div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ===================== OVERLAY: dar de alta estudio ===================== -->
+  <sc-if value="{{ showAlta }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute; inset:0; z-index:45; background:rgba(6,7,9,0.72); display:flex; align-items:center; justify-content:center; padding:30px;">
+      <div style="width:560px; max-width:100%; max-height:100%; overflow:auto; border:1px solid #2a3140; background:#12151c; border-radius:18px; padding:24px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+          <div style="font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:18px;">Dar de alta estudio</div>
+          <div onClick="{{ closeAlta }}" style="width:28px; height:28px; border-radius:8px; background:#1b202a; border:1px solid #2a3140; display:flex; align-items:center; justify-content:center; cursor:pointer;"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 3l6 6M9 3l-6 6" stroke="#9aa3b4" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+        </div>
+        <div style="font-size:12.5px; color:#8b93a3; margin-bottom:18px;">Los campos marcados con <span style="color:#e5675f;">*</span> son obligatorios</div>
+        <div style="display:flex; flex-direction:column; gap:14px;">
+          <div><div style="{{ lbl }}">Nombre del estudio <span style="color:#e5675f;">*</span></div><input value="{{ alta.nombre }}" onChange="{{ setA.nombre }}" placeholder="Ej. Rayos X - dos proyecciones" style="{{ inp }}" /></div>
+          <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px;">
+            <div><div style="{{ lbl }}">Modalidad <span style="color:#e5675f;">*</span></div>
+              <select value="{{ alta.mod }}" onChange="{{ setA.mod }}" style="{{ inp }}"><sc-for list="{{ modOpts }}" as="m" hint-placeholder-count="4"><option value="{{ m }}">{{ m }}</option></sc-for></select>
+            </div>
+            <div><div style="{{ lbl }}">Precio al público <span style="color:#e5675f;">*</span></div><input value="{{ alta.precio }}" onChange="{{ setA.precio }}" placeholder="$0.00" style="{{ inp }}" /></div>
+            <div><div style="{{ lbl }}">Costo del estudio</div><input value="{{ alta.costo }}" onChange="{{ setA.costo }}" placeholder="$0.00" style="{{ inp }}" /></div>
+          </div>
+          <div><div style="{{ lbl }}">Indicaciones para el estudio</div><textarea value="{{ alta.indicaciones }}" onChange="{{ setA.indicaciones }}" placeholder="¿Qué indicaciones debe seguir el paciente?" style="{{ inp }} height:84px; resize:vertical;"></textarea></div>
+          <div onClick="{{ toggleCita }}" style="display:flex; align-items:center; gap:10px; cursor:pointer;">
+            <div style="{{ citaCheck }}"><sc-if value="{{ altaCita }}" hint-placeholder-val="{{ false }}"><svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M2 6.2l2.4 2.3L10 3" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></sc-if></div>
+            <span style="font-size:13.5px;">Este estudio requiere cita</span>
+          </div>
+        </div>
+        <div style="display:flex; gap:10px; margin-top:22px; justify-content:flex-end;">
+          <div onClick="{{ closeAlta }}" style="padding:11px 20px; border-radius:11px; font-size:13.5px; font-weight:600; background:#1b202a; color:#cdd3df; border:1px solid #2a3140; cursor:pointer;">Cancelar</div>
+          <div onClick="{{ saveAlta }}" style="padding:11px 24px; border-radius:11px; font-size:13.5px; font-weight:600; background:#7c6cff; color:#fff; cursor:pointer;">Guardar</div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ===================== OVERLAY: abrir caja ===================== -->
+  <sc-if value="{{ showOpenModal }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute; inset:0; z-index:45; background:rgba(6,7,9,0.72); display:flex; align-items:center; justify-content:center; padding:30px;">
+      <div style="width:420px; max-width:100%; border:1px solid #2a3140; background:#12151c; border-radius:18px; padding:24px;">
+        <div style="font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:18px; margin-bottom:4px;">Abrir caja</div>
+        <div style="font-size:12.5px; color:#8b93a3; margin-bottom:18px;">Indica el monto con el que abre la caja.</div>
+        <div style="{{ lbl }}">Fondo inicial</div>
+        <input value="{{ openFondo }}" onChange="{{ setFondo }}" placeholder="$0.00" style="{{ inp }} font-family:'JetBrains Mono',monospace; font-size:16px;" />
+        <div style="display:flex; gap:10px; margin-top:22px; justify-content:flex-end;">
+          <div onClick="{{ closeOpenModal }}" style="padding:11px 20px; border-radius:11px; font-size:13.5px; font-weight:600; background:#1b202a; color:#cdd3df; border:1px solid #2a3140; cursor:pointer;">Cancelar</div>
+          <div onClick="{{ confirmOpen }}" style="padding:11px 24px; border-radius:11px; font-size:13.5px; font-weight:600; background:#7c6cff; color:#fff; cursor:pointer;">Abrir e imprimir ticket</div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ===================== OVERLAY: movimiento efectivo ===================== -->
+  <sc-if value="{{ showCash }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute; inset:0; z-index:45; background:rgba(6,7,9,0.72); display:flex; align-items:center; justify-content:center; padding:30px;">
+      <div style="width:420px; max-width:100%; border:1px solid #2a3140; background:#12151c; border-radius:18px; padding:24px;">
+        <div style="font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:18px; margin-bottom:18px;">{{ cashTitle }}</div>
+        <div style="display:flex; flex-direction:column; gap:14px;">
+          <div><div style="{{ lbl }}">Concepto</div><input value="{{ cashForm.concepto }}" onChange="{{ setCash.concepto }}" placeholder="Motivo del movimiento" style="{{ inp }}" /></div>
+          <div><div style="{{ lbl }}">Monto</div><input value="{{ cashForm.monto }}" onChange="{{ setCash.monto }}" placeholder="$0.00" style="{{ inp }} font-family:'JetBrains Mono',monospace;" /></div>
+        </div>
+        <div style="display:flex; gap:10px; margin-top:22px; justify-content:flex-end;">
+          <div onClick="{{ closeCash }}" style="padding:11px 20px; border-radius:11px; font-size:13.5px; font-weight:600; background:#1b202a; color:#cdd3df; border:1px solid #2a3140; cursor:pointer;">Cancelar</div>
+          <div onClick="{{ confirmCash }}" style="padding:11px 24px; border-radius:11px; font-size:13.5px; font-weight:600; background:#7c6cff; color:#fff; cursor:pointer;">Registrar</div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ===================== OVERLAY: enviar cotización ===================== -->
+  <sc-if value="{{ showSend }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute; inset:0; z-index:48; background:rgba(6,7,9,0.72); display:flex; align-items:center; justify-content:center; padding:30px;">
+      <div style="width:440px; max-width:100%; border:1px solid #2a3140; background:#12151c; border-radius:18px; padding:24px;">
+        <div style="font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:18px; margin-bottom:4px;">Enviar cotización</div>
+        <div style="font-size:12.5px; color:#8b93a3; margin-bottom:18px;">Elige el medio y el destino para enviar la cotización al paciente.</div>
+        <div style="display:flex; gap:4px; padding:4px; border-radius:11px; background:#0e1116; border:1px solid #1e222b; margin-bottom:16px;">
+          <div onClick="{{ setSendWhats }}" style="{{ sendTabWhats }}">WhatsApp</div>
+          <div onClick="{{ setSendCorreo }}" style="{{ sendTabCorreo }}">Correo</div>
+        </div>
+        <sc-if value="{{ sendIsWhats }}" hint-placeholder-val="{{ true }}"><div style="{{ lbl }}">Número de WhatsApp</div></sc-if>
+        <sc-if value="{{ sendIsCorreo }}" hint-placeholder-val="{{ false }}"><div style="{{ lbl }}">Correo electrónico</div></sc-if>
+        <input value="{{ sendTo }}" onChange="{{ setSendTo }}" placeholder="{{ sendPlaceholder }}" style="{{ inp }}" />
+        <div style="display:flex; gap:10px; margin-top:22px; justify-content:flex-end;">
+          <div onClick="{{ closeSend }}" style="padding:11px 20px; border-radius:11px; font-size:13.5px; font-weight:600; background:#1b202a; color:#cdd3df; border:1px solid #2a3140; cursor:pointer;">Cancelar</div>
+          <div onClick="{{ confirmSend }}" style="padding:11px 24px; border-radius:11px; font-size:13.5px; font-weight:600; background:#7c6cff; color:#fff; cursor:pointer;">Enviar cotización</div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ===================== OVERLAY: configuración empresa ===================== -->
+  <sc-if value="{{ showEmpresa }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute; inset:0; z-index:48; background:rgba(6,7,9,0.72); display:flex; align-items:center; justify-content:center; padding:30px;">
+      <div style="width:560px; max-width:100%; max-height:100%; overflow:auto; border:1px solid #2a3140; background:#12151c; border-radius:18px; padding:24px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+          <div style="font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:18px;">Datos de la empresa</div>
+          <div onClick="{{ closeEmpresa }}" style="width:28px; height:28px; border-radius:8px; background:#1b202a; border:1px solid #2a3140; display:flex; align-items:center; justify-content:center; cursor:pointer;"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 3l6 6M9 3l-6 6" stroke="#9aa3b4" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+        </div>
+        <div style="font-size:12.5px; color:#8b93a3; margin-bottom:18px;">Aparecen en todos los tickets. Cada empresa del PACS puede tener sus propios datos y logotipo.</div>
+        <div style="display:flex; align-items:center; gap:16px; margin-bottom:18px; padding:14px; border:1px solid #232834; border-radius:12px; background:#0e1116;">
+          <div style="width:78px; height:78px; border-radius:10px; background:#f4f1ea; display:flex; align-items:center; justify-content:center; overflow:hidden; flex-shrink:0;">
+            <sc-if value="{{ empresaFormHasLogo }}" hint-placeholder-val="{{ false }}"><img src="{{ empresaForm.logo }}" style="max-width:100%; max-height:100%; object-fit:contain;" /></sc-if>
+            <sc-if value="{{ empresaFormNoLogo }}" hint-placeholder-val="{{ true }}"><span style="font-size:10px; color:#999; font-family:'JetBrains Mono',monospace;">sin logo</span></sc-if>
+          </div>
+          <div style="flex:1;">
+            <div style="font-size:12.5px; color:#cdd3df; font-weight:600; margin-bottom:8px;">Logotipo para tickets</div>
+            <div style="display:flex; gap:9px;">
+              <label style="display:inline-flex; align-items:center; gap:7px; padding:9px 14px; border-radius:10px; font-size:12.5px; font-weight:600; background:#1b202a; color:#c9c2ff; border:1px solid rgba(124,108,255,0.4); cursor:pointer;"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 10.5V3M5 6l3-3 3 3M3 12.5h10" stroke="#c9c2ff" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>Subir imagen<input type="file" accept="image/*" onChange="{{ onLogo }}" style="display:none;" /></label>
+              <sc-if value="{{ empresaFormHasLogo }}" hint-placeholder-val="{{ false }}"><div onClick="{{ clearLogo }}" style="padding:9px 14px; border-radius:10px; font-size:12.5px; font-weight:600; background:#1b202a; color:#e5675f; border:1px solid rgba(229,103,95,0.3); cursor:pointer;">Quitar</div></sc-if>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:14px;">
+          <div><div style="{{ lbl }}">Nombre de la empresa</div><input value="{{ empresaForm.nombre }}" onChange="{{ setE.nombre }}" placeholder="Nombre comercial" style="{{ inp }}" /></div>
+          <div><div style="{{ lbl }}">Giro / subtítulo</div><input value="{{ empresaForm.giro }}" onChange="{{ setE.giro }}" placeholder="Ej. Centro de imagen y diagnóstico" style="{{ inp }}" /></div>
+          <div><div style="{{ lbl }}">Dirección</div><input value="{{ empresaForm.direccion }}" onChange="{{ setE.direccion }}" placeholder="Calle, colonia, ciudad" style="{{ inp }}" /></div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
+            <div><div style="{{ lbl }}">Teléfono</div><input value="{{ empresaForm.tel }}" onChange="{{ setE.tel }}" placeholder="(XXX) XXX XXXX" style="{{ inp }}" /></div>
+            <div><div style="{{ lbl }}">RFC</div><input value="{{ empresaForm.rfc }}" onChange="{{ setE.rfc }}" placeholder="RFC de la empresa" style="{{ inp }}" /></div>
+          </div>
+        </div>
+        <div style="display:flex; gap:10px; margin-top:22px; justify-content:flex-end;">
+          <div onClick="{{ closeEmpresa }}" style="padding:11px 20px; border-radius:11px; font-size:13.5px; font-weight:600; background:#1b202a; color:#cdd3df; border:1px solid #2a3140; cursor:pointer;">Cancelar</div>
+          <div onClick="{{ saveEmpresa }}" style="padding:11px 24px; border-radius:11px; font-size:13.5px; font-weight:600; background:#7c6cff; color:#fff; cursor:pointer;">Guardar</div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ===================== OVERLAY: PIN de seguridad ===================== -->
+  <sc-if value="{{ pinShow }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute; inset:0; z-index:55; background:rgba(6,7,9,0.78); display:flex; align-items:center; justify-content:center; padding:30px;">
+      <div style="width:380px; max-width:100%; border:1px solid #2a3140; background:#12151c; border-radius:18px; padding:24px;">
+        <div style="display:flex; align-items:center; gap:11px; margin-bottom:12px;">
+          <div style="width:34px; height:34px; border-radius:10px; background:rgba(124,108,255,0.14); display:flex; align-items:center; justify-content:center;"><svg width="18" height="18" viewBox="0 0 16 16" fill="none"><rect x="3" y="7" width="10" height="7" rx="1.5" stroke="#c9c2ff" stroke-width="1.3"/><path d="M5.5 7V5a2.5 2.5 0 015 0v2" stroke="#c9c2ff" stroke-width="1.3"/></svg></div>
+          <div><div style="font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:16px;">Clave de acceso</div><div style="font-size:12px; color:#8b93a3;">{{ pinTitle }}</div></div>
+        </div>
+        <div style="{{ lbl }}">Ingresa el PIN autorizado</div>
+        <input value="{{ pinValue }}" onChange="{{ setPin }}" type="password" placeholder="••••" style="{{ inp }} font-family:'JetBrains Mono',monospace; font-size:18px; letter-spacing:0.3em; text-align:center;" />
+        <sc-if value="{{ pinError }}" hint-placeholder-val="{{ false }}"><div style="margin-top:8px; font-size:12px; color:#e5675f; font-weight:600;">{{ pinError }}</div></sc-if>
+        <div style="margin-top:6px; font-size:11px; color:#646c7d; font-family:'JetBrains Mono',monospace;">PIN de demostración: 1234</div>
+        <div style="display:flex; gap:10px; margin-top:20px; justify-content:flex-end;">
+          <div onClick="{{ cancelPin }}" style="padding:11px 20px; border-radius:11px; font-size:13.5px; font-weight:600; background:#1b202a; color:#cdd3df; border:1px solid #2a3140; cursor:pointer;">Cancelar</div>
+          <div onClick="{{ confirmPin }}" style="padding:11px 24px; border-radius:11px; font-size:13.5px; font-weight:600; background:#7c6cff; color:#fff; cursor:pointer;">Autorizar</div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ===================== OVERLAY: confirmar eliminar (worklist) ===================== -->
+  <sc-if value="{{ confirmDelShow }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute; inset:0; z-index:55; background:rgba(6,7,9,0.78); display:flex; align-items:center; justify-content:center; padding:30px;">
+      <div style="width:430px; max-width:100%; border:1px solid #2a3140; background:#12151c; border-radius:18px; padding:24px;">
+        <div style="display:flex; align-items:center; gap:11px; margin-bottom:12px;">
+          <div style="width:34px; height:34px; border-radius:10px; background:rgba(229,103,95,0.14); display:flex; align-items:center; justify-content:center; flex-shrink:0;"><svg width="19" height="19" viewBox="0 0 16 16" fill="none"><path d="M8 1.5L1 14h14L8 1.5z" stroke="#e5675f" stroke-width="1.3" stroke-linejoin="round"/><path d="M8 6v3.5M8 11.4v.1" stroke="#e5675f" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+          <div style="font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:17px;">Eliminar estudio</div>
+        </div>
+        <div style="font-size:13.5px; color:#9aa3b4; line-height:1.6;">Se eliminará «{{ confirmDel.est }}» de {{ confirmDel.pac }} del equipo y de la worklist. Esta acción no se puede deshacer.</div>
+        <div style="display:flex; gap:10px; margin-top:22px;">
+          <div onClick="{{ cancelDel }}" style="flex:1; text-align:center; padding:12px; border-radius:11px; font-size:13.5px; font-weight:600; background:#1b202a; color:#cdd3df; border:1px solid #2a3140; cursor:pointer;">Cancelar</div>
+          <div onClick="{{ doDelWl }}" style="flex:1; text-align:center; padding:12px; border-radius:11px; font-size:13.5px; font-weight:600; background:#e5675f; color:#fff; cursor:pointer;">Eliminar</div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ===================== OVERLAY: ticket ===================== -->
+  <sc-if value="{{ ticketOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute; inset:0; z-index:50; background:rgba(6,7,9,0.74); display:flex; align-items:center; justify-content:center; padding:30px;">
+      <div style="width:340px; max-width:100%;">
+        <div style="{{ ticketAccent }}"></div>
+        <div style="background:#f4f1ea; color:#1a1a1a; padding:20px 22px 18px; font-family:'JetBrains Mono',monospace;">
+          <div style="text-align:center; border-bottom:1px dashed #b9b2a3; padding-bottom:12px;">
+            <sc-if value="{{ empresaHasLogo }}" hint-placeholder-val="{{ false }}"><img src="{{ empresa.logo }}" style="max-height:46px; max-width:180px; object-fit:contain; margin:0 auto 8px; display:block;" /></sc-if>
+            <div style="font-weight:700; font-size:15px; letter-spacing:0.04em;">{{ empresa.nombre }}</div>
+            <div style="font-size:11px; color:#555;">{{ empresa.giro }}</div>
+            <div style="font-size:10.5px; color:#555; margin-top:2px;">{{ empresa.direccion }}</div>
+            <div style="font-size:10.5px; color:#555;">Tel. {{ empresa.tel }} · RFC {{ empresa.rfc }}</div>
+            <div style="font-size:11px; color:#555; margin-top:4px;">{{ ticket.fecha }}</div>
+          </div>
+          <sc-if value="{{ ticketWarn }}" hint-placeholder-val="{{ false }}">
+            <div style="margin:12px 0 4px; padding:8px; border:1.5px solid #1a1a1a; border-radius:3px; text-align:center;">
+              <div style="font-weight:700; font-size:12px; letter-spacing:0.04em;">*** COTIZACIÓN ***</div>
+              <div style="font-size:10px; margin-top:3px; line-height:1.5;">ESTE DOCUMENTO NO ES UN COMPROBANTE DE PAGO<br>No válido para efectos fiscales</div>
+            </div>
+          </sc-if>
+          <div style="font-size:12px; line-height:1.9; padding:12px 0; border-bottom:1px dashed #b9b2a3;">
+            <div style="text-align:center; font-weight:700; font-size:13px; margin-bottom:8px;">{{ ticket.titulo }}</div>
+            <sc-if value="{{ ticketHasFolio }}" hint-placeholder-val="{{ false }}"><div style="display:flex; justify-content:space-between; gap:12px;"><span style="color:#555;">Folio</span><span style="font-weight:600;">{{ ticket.folio }}</span></div></sc-if>
+            <sc-for list="{{ ticket.rows }}" as="r" hint-placeholder-count="3">
+              <div style="display:flex; justify-content:space-between; gap:12px;"><span style="color:#555;">{{ r.k }}</span><span style="font-weight:600; text-align:right;">{{ r.v }}</span></div>
+            </sc-for>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:14px; font-weight:700; padding-top:12px;"><span>{{ ticket.totalLabel }}</span><span>{{ ticket.total }}</span></div>
+          <sc-if value="{{ ticketWarn }}" hint-placeholder-val="{{ false }}">
+            <div style="text-align:center; font-size:10.5px; color:#777; margin-top:12px;">{{ ticket.vigencia }}</div>
+            <div style="text-align:center; font-size:10px; color:#999; margin-top:3px;">Precios sujetos a cambio sin previo aviso</div>
+          </sc-if>
+          <sc-if value="{{ ticketNoWarn }}" hint-placeholder-val="{{ true }}">
+            <div style="text-align:center; font-size:10.5px; color:#777; margin-top:14px;">*** Gracias por su preferencia ***</div>
+          </sc-if>
+        </div>
+        <div style="display:flex; gap:10px; margin-top:14px;">
+          <div onClick="{{ printTicket }}" style="flex:1; text-align:center; padding:12px; border-radius:11px; font-size:13.5px; font-weight:600; background:#1b202a; color:#cdd3df; border:1px solid #2a3140; cursor:pointer;">Imprimir</div>
+          <div onClick="{{ closeTicket }}" style="flex:1; text-align:center; padding:12px; border-radius:11px; font-size:13.5px; font-weight:600; background:#7c6cff; color:#fff; cursor:pointer;">Listo</div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ===================== TOAST: cajón abierto ===================== -->
+  <sc-if value="{{ drawerPulse }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute; left:50%; bottom:26px; transform:translateX(-50%); z-index:60; display:flex; align-items:center; gap:11px; padding:12px 18px; border-radius:13px; background:#12241b; border:1px solid rgba(62,207,142,0.45); box-shadow:0 10px 34px rgba(0,0,0,0.5);">
+      <div style="width:30px; height:30px; border-radius:9px; background:rgba(62,207,142,0.16); display:flex; align-items:center; justify-content:center;"><svg width="17" height="17" viewBox="0 0 16 16" fill="none"><rect x="2" y="6" width="12" height="7" rx="1.4" stroke="#3ecf8e" stroke-width="1.3"/><path d="M2 9h12M6.5 11.2h3" stroke="#3ecf8e" stroke-width="1.3" stroke-linecap="round"/><path d="M8 6V2.5M5.6 3.4L8 2l2.4 1.4" stroke="#3ecf8e" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div><div style="font-size:13.5px; font-weight:600; color:#eafaf2;">Cajón abierto</div><div style="font-size:11.5px; color:#7fd6ad; font-family:'JetBrains Mono',monospace; margin-top:1px;">{{ drawerReason }} · pulso a impresora</div></div>
+    </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1240,&quot;height&quot;:800}}">
+class Component extends DCLogic {
+  componentDidMount() {
+    if (window.ApolloStore) this._unsub = window.ApolloStore.subscribe(() => this.forceUpdate());
+  }
+  componentWillUnmount() { if (this._unsub) this._unsub(); }
+  state = {
+    sub:'catalogo', q:'', oq:'', wq:'', cart:[], sent:false,
+    showSend:false, sendMethod:'whatsapp', sendTo:'', sentInfo:null,
+    pinGate:null, showEmpresa:false, empresaForm:null, confirmDel:null,
+    showPatient:false,
+    patient:{ canal:'', idPac:'', nombre:'', apPaterno:'', apMaterno:'', fnac:'', sexo:'', tel:'', correo:'', estado:'Sonora', ciudad:'Puerto Peñasco', calle:'', colonia:'', cp:'' },
+    showAlta:false,
+    alta:{ nombre:'', mod:'DX', precio:'', costo:'', indicaciones:'', requiereCita:false },
+    catalog:[
+      ['ANTEBRAZO AP Y LAT','DX',500],['BIOPSIA DE MAMA','US',3500],['BIOPSIA DE TIROIDES','US',3500],
+      ['CADERA OBLICUA O LAT','DX',400],['CALCANEO COMPARATIVO','DX',600],['CALCANEO LAT','DX',300],
+      ['CEFALOPELVIMETRIA','DX',500],['CISTOGRAMA','DX',3500],['CODO AP Y LAT','DX',500],
+      ['COL.CERVICAL AP Y LAT','DX',500],['COL.DORSAL AP Y LAT','DX',500],['COL.LUMBAR AP Y LAT','DX',500],
+      ['CRANEO AP Y LAT','DX',700],['MASTOGRAFIA','DX',1500],['COLON POR ENEMA','DX',2500],
+      ['US ABDOMEN','US',1200],['TC CRANEO SIMPLE','CT',2800],['RM RODILLA','MR',4500],
+    ].map((s,i)=>({ id:'E'+i, name:s[0], mod:s[1], price:s[2] })),
+    orders:[
+      { id:'O1', paciente:'CARLOS TOPETE PARRA',        sexo:'M', estudio:'TÓRAX',           mod:'DX', precio:500,  sucursal:'centro', prioridad:'Normal',  fecha:'30 jun 2026', estatus:'Listo',  pagado:false, folio:'C-15884-1' },
+      { id:'O2', paciente:'BEATRIZ PACHECO GALVEZ',     sexo:'F', estudio:'RODILLA AP Y LAT',mod:'DX', precio:500,  sucursal:'centro', prioridad:'Urgente', fecha:'30 jun 2026', estatus:'Listo',  pagado:false, folio:'C-15883-1' },
+      { id:'O3', paciente:'MARIA MARTINA ALVAREZ',      sexo:'F', estudio:'HOMBRO',          mod:'DX', precio:500,  sucursal:'centro', prioridad:'Normal',  fecha:'29 jun 2026', estatus:'Pagado', pagado:true,  folio:'C-15882-1' },
+      { id:'O4', paciente:'MARISOL NUÑEZ GARCIA',       sexo:'F', estudio:'TÓRAX',           mod:'DX', precio:500,  sucursal:'centro', prioridad:'Normal',  fecha:'29 jun 2026', estatus:'Listo',  pagado:false, folio:'C-15881-1' },
+      { id:'O5', paciente:'JOSE LUIS RAMOS DENA',       sexo:'M', estudio:'US ABDOMEN',      mod:'US', precio:1200, sucursal:'centro', prioridad:'Normal',  fecha:'29 jun 2026', estatus:'Pagado', pagado:true,  folio:'C-15880-1' },
+    ],
+    cajaOpen:false, fondo:0, apertura:'', movimientos:[],
+    cobroId:null, pay:'efectivo', recibido:'', factura:false,
+    fact:{ rfc:'', razon:'', regimen:'', uso:'', cp:'', correo:'' },
+    showOpenModal:false, openFondo:'',
+    showCash:null, cashForm:{ concepto:'', monto:'' },
+    ticket:null,
+    drawerPulse:false, drawerReason:'',
+  };
+
+  kickDrawer(reason) {
+    // En hardware real: la impresora térmica envía el pulso ESC/POS (kick) que destraba el cajón.
+    // Solo se dispara en movimientos de EFECTIVO (cobro efectivo, egreso, corte) o apertura manual.
+    if (this._drawerT) clearTimeout(this._drawerT);
+    this.setState({ drawerPulse:true, drawerReason:reason });
+    this._drawerT = setTimeout(()=>this.setState({ drawerPulse:false }), 2200);
+  }
+
+  renderVals() {
+    const fmt = n => '$' + (Math.round((Number(n)||0)*100)/100).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+    const hora = () => new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
+    const hoy = '30 jun 2026';
+
+    const inp = "width:100%; padding:11px 13px; border-radius:10px; background:#0e1116; border:1px solid #2a3140; color:#e9ebf1; font-size:13.5px; outline:none;";
+    const lbl = "font-size:11px; font-weight:600; color:#8b93a3; margin-bottom:6px;";
+
+    // tabs
+    const segBase = { padding:'8px 16px', borderRadius:8, fontSize:13, fontWeight:600, cursor:'pointer', color:'#9aa3b4', userSelect:'none' };
+    const segOn = { ...segBase, background:'#1b202a', color:'#e9ebf1', boxShadow:'0 1px 3px rgba(0,0,0,0.35)' };
+    const sub = this.state.sub;
+    const tabOf = k => sub===k ? segOn : segBase;
+
+    // ---- catalogo ----
+    const q = this.state.q.trim().toLowerCase();
+    const cardBase = { border:'1px solid #232834', background:'#161a22', borderRadius:14, padding:16 };
+    const cardSel = { ...cardBase, border:'1px solid rgba(124,108,255,0.6)', background:'rgba(124,108,255,0.07)' };
+    const addBase = { width:26, height:26, borderRadius:8, background:'#1b202a', border:'1px solid #2a3140', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'#8b7bff', fontSize:18, fontWeight:600, flexShrink:0, lineHeight:1 };
+    const addOn = { ...addBase, background:'#7c6cff', border:'1px solid #7c6cff', color:'#fff', fontSize:15 };
+    const cat = this.state.catalog
+      .map((s,i)=>({ s, i }))
+      .filter(({s})=> !q || s.name.toLowerCase().includes(q))
+      .map(({s,i})=>{
+        const inCart = this.state.cart.includes(i);
+        return { name:s.name, mod:s.mod, priceFmt:fmt(s.price),
+          cardStyle: inCart ? cardSel : cardBase,
+          addStyle: inCart ? addOn : addBase,
+          addLabel: inCart ? '×' : '+',
+          toggle: () => this.setState(st => ({ cart: st.cart.includes(i) ? st.cart.filter(x=>x!==i) : [...st.cart, i], sent:false })) };
+      });
+
+    const cartItems = this.state.cart.map(i => { const s=this.state.catalog[i]; return { name:s.name, mod:s.mod, priceFmt:fmt(s.price), remove:()=>this.setState(st=>({cart:st.cart.filter(x=>x!==i), sent:false})) }; });
+    const cartTotal = this.state.cart.reduce((a,i)=>a+(this.state.catalog[i]?this.state.catalog[i].price:0),0);
+
+    // ---- status / priority styles ----
+    const SM = { Listo:{c:'#5aa6f0',bg:'rgba(90,166,240,0.14)'}, Pagado:{c:'#3ecf8e',bg:'rgba(62,207,142,0.14)'}, 'Orden creada':{c:'#e0a64a',bg:'rgba(224,166,74,0.14)'} };
+    const estStyle = k => ({ display:'inline-flex', alignItems:'center', gap:6, padding:'3px 10px', borderRadius:999, fontSize:11, fontWeight:600, color:(SM[k]||SM.Listo).c, background:(SM[k]||SM.Listo).bg, whiteSpace:'nowrap' });
+    const estDot = k => ({ width:6, height:6, borderRadius:999, background:(SM[k]||SM.Listo).c });
+    const prioStyle = p => ({ padding:'3px 10px', borderRadius:999, fontSize:11, fontWeight:700, color: p==='Urgente'?'#e5675f':'#9aa3b4', background: p==='Urgente'?'rgba(229,103,95,0.14)':'#1b202a', border: p==='Urgente'?'1px solid rgba(229,103,95,0.3)':'1px solid #2a3140' });
+
+    const oq = this.state.oq.trim().toLowerCase();
+    const ordersV = this.state.orders
+      .filter(o => !oq || o.paciente.toLowerCase().includes(oq) || o.estudio.toLowerCase().includes(oq))
+      .map(o => ({ ...o, estStyle:estStyle(o.estatus), estDot:estDot(o.estatus), prioStyle:prioStyle(o.prioridad) }));
+
+    // ---- caja ----
+    const ingresos = this.state.movimientos.filter(m=>m.tipo==='ingreso'||m.tipo==='entrada').reduce((a,m)=>a+m.monto,0);
+    const egresos = this.state.movimientos.filter(m=>m.tipo==='egreso').reduce((a,m)=>a+m.monto,0);
+    const efectivo = this.state.fondo + ingresos - egresos;
+
+    const rowBase = { border:'1px solid #232834', background:'#161a22', borderRadius:12, padding:'13px 14px', cursor:'pointer' };
+    const rowSel = { ...rowBase, border:'1px solid rgba(124,108,255,0.6)', background:'rgba(124,108,255,0.08)' };
+    const porCobrar = this.state.orders.filter(o=>!o.pagado).map(o=>({ ...o, priceFmt:fmt(o.precio),
+      rowStyle: this.state.cobroId===o.id ? rowSel : rowBase,
+      select: ()=>this.setState({ cobroId:o.id, recibido:'' }) }));
+
+    const movLabel = m => m.tipo==='apertura' ? 'Apertura de caja' : m.tipo==='ingreso' ? ('Cobro · '+m.concepto) : m.concepto;
+    const movColor = m => (m.tipo==='egreso') ? '#e5675f' : (m.tipo==='apertura') ? '#8b93a3' : '#3ecf8e';
+    const movsV = this.state.movimientos.slice().reverse().map(m=>({ label:movLabel(m), hora:m.hora, montoFmt:(m.tipo==='egreso'?'-':'+')+fmt(m.monto), color:movColor(m) }));
+
+    const cobro = this.state.orders.find(o=>o.id===this.state.cobroId) || null;
+    const cobroSel = !!cobro;
+    const recibidoNum = Number(String(this.state.recibido).replace(/[^0-9.]/g,'')) || 0;
+    const cambioVal = cobro ? (recibidoNum - cobro.precio) : 0;
+    const payIsEfectivo = this.state.pay==='efectivo';
+    const cobrarOk = cobro && (this.state.pay==='tarjeta' || recibidoNum >= cobro.precio);
+    const cobrarStyleBase = { display:'flex', alignItems:'center', justifyContent:'center', gap:9, marginTop:18, padding:14, borderRadius:12, fontSize:14, fontWeight:600, color:'#fff' };
+    const cobrarStyle = cobrarOk ? { ...cobrarStyleBase, background:'#3ecf8e', cursor:'pointer', boxShadow:'0 4px 14px rgba(62,207,142,0.3)' } : { ...cobrarStyleBase, background:'#1b2620', color:'#3a5a48', cursor:'not-allowed' };
+
+    const payTabBase = { flex:1, textAlign:'center', padding:'8px 0', borderRadius:8, fontSize:13, fontWeight:600, cursor:'pointer', color:'#9aa3b4', userSelect:'none' };
+    const payTabOn = { ...payTabBase, background:'#1b202a', color:'#e9ebf1' };
+
+    const checkBase = { width:20, height:20, borderRadius:6, border:'1.5px solid #2a3140', background:'#0e1116', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 };
+    const checkOn = { ...checkBase, background:'#7c6cff', border:'1.5px solid #7c6cff' };
+
+    // ---- field setters ----
+    const mk = (key, slot) => e => { const v = e.target.type==='checkbox' ? e.target.checked : e.target.value; this.setState(s=>({ [slot]:{ ...s[slot], [key]:v } })); };
+    const setP = {}; ['canal','idPac','nombre','apPaterno','apMaterno','fnac','sexo','tel','correo','estado','ciudad','calle','colonia','cp'].forEach(k=>setP[k]=mk(k,'patient'));
+    const setF = {}; ['rfc','razon','regimen','uso','cp','correo'].forEach(k=>setF[k]=mk(k,'fact'));
+    const setA = {}; ['nombre','mod','precio','costo','indicaciones'].forEach(k=>setA[k]=mk(k,'alta'));
+    const setCash = { concepto: mk('concepto','cashForm'), monto: mk('monto','cashForm') };
+
+    // ---- actions ----
+    const generarOrdenes = () => {
+      const p = this.state.patient;
+      const name = [p.apPaterno, p.apMaterno, p.nombre].filter(Boolean).join(' ').toUpperCase().trim() || 'PACIENTE SIN NOMBRE';
+      const base = 15901;
+      const news = this.state.cart.map((ci,k)=>{ const s=this.state.catalog[ci]; return { id:'N'+Date.now()+'_'+k, paciente:name, sexo:p.sexo==='Femenino'?'F':'M', estudio:s.name, mod:s.mod, precio:s.price, sucursal:'centro', prioridad:'Normal', fecha:hoy, estatus:'Listo', pagado:false, folio:'C-'+(base+k)+'-1' }; });
+      this.setState(s=>({ orders:[...news, ...s.orders], cart:[], showPatient:false, sub:'ordenes', patient:{ canal:'', idPac:'', nombre:'', apPaterno:'', apMaterno:'', fnac:'', sexo:'', tel:'', correo:'', estado:'Sonora', ciudad:'Puerto Peñasco', calle:'', colonia:'', cp:'' } }));
+    };
+
+    const saveAlta = () => { const a=this.state.alta; if(!a.nombre.trim()) return;
+      const item={ id:'E'+Date.now(), name:a.nombre.toUpperCase(), mod:a.mod, price:Number(String(a.precio).replace(/[^0-9.]/g,''))||0 };
+      this.setState(s=>({ catalog:[item, ...s.catalog], showAlta:false, alta:{ nombre:'', mod:'DX', precio:'', costo:'', indicaciones:'', requiereCita:false } }));
+    };
+
+    const confirmOpen = () => { const f=Number(String(this.state.openFondo).replace(/[^0-9.]/g,''))||0; const h=hora();
+      this.setState({ cajaOpen:true, fondo:f, apertura:h, movimientos:[{ tipo:'apertura', concepto:'Apertura', monto:f, hora:h }], showOpenModal:false, openFondo:'',
+        ticket:{ titulo:'APERTURA DE CAJA', fecha:hoy+' · '+h, rows:[{k:'Cajero', v:'Recepción'},{k:'Hora', v:h}], totalLabel:'FONDO INICIAL', total:fmt(f) } });
+    };
+
+    const confirmCash = () => { const c=this.state.cashForm; const m=Number(String(c.monto).replace(/[^0-9.]/g,''))||0; if(!m) return; const tipo=this.state.showCash; const h=hora();
+      this.setState(s=>({ movimientos:[...s.movimientos, { tipo, concepto:c.concepto||(tipo==='entrada'?'Entrada de efectivo':'Egreso de efectivo'), monto:m, hora:h }], showCash:null, cashForm:{ concepto:'', monto:'' } }));
+      this.kickDrawer(tipo==='egreso' ? 'Egreso de efectivo' : 'Entrada de efectivo'); // movimiento de efectivo → abre cajón
+    };
+
+    const cobrar = () => { if(!cobrarOk) return; const h=hora(); const o=cobro; const metodo=this.state.pay==='efectivo'?'Efectivo':'Tarjeta';
+      const rows=[{k:'Paciente', v:o.paciente},{k:'Estudio', v:o.estudio},{k:'Folio', v:o.folio},{k:'Método', v:metodo}];
+      if(this.state.pay==='efectivo'){ rows.push({k:'Recibido', v:fmt(recibidoNum)}); rows.push({k:'Cambio', v:fmt(Math.max(0,recibidoNum-o.precio))}); }
+      if(this.state.factura){ rows.push({k:'Factura', v:this.state.fact.rfc||'Datos guardados'}); }
+      this.setState(s=>({
+        orders: s.orders.map(x=>x.id===o.id?{...x, pagado:true, estatus:'Pagado'}:x),
+        movimientos: this.state.pay==='efectivo' ? [...s.movimientos, { tipo:'ingreso', concepto:o.folio, monto:o.precio, hora:h }] : s.movimientos,
+        cobroId:null, recibido:'', factura:false, fact:{ rfc:'', razon:'', regimen:'', uso:'', cp:'', correo:'' },
+        ticket:{ titulo:'RECIBO DE PAGO', fecha:hoy+' · '+h, rows, totalLabel:'TOTAL', total:fmt(o.precio) }
+      }));
+      if (this.state.pay==='efectivo') this.kickDrawer('Cobro en efectivo'); // tarjeta NO abre el cajón
+    };
+
+    const cerrarCaja = () => { const h=hora();
+      this.setState({ ticket:{ titulo:'CORTE DE CAJA', fecha:hoy+' · '+h, rows:[{k:'Fondo inicial', v:fmt(this.state.fondo)},{k:'Ingresos', v:fmt(ingresos)},{k:'Egresos', v:fmt(egresos)}], totalLabel:'EFECTIVO FINAL', total:fmt(efectivo) },
+        cajaOpen:false, fondo:0, apertura:'', movimientos:[], cobroId:null });
+      this.kickDrawer('Corte de caja'); // corte cuenta efectivo → abre cajón
+    };
+
+    const doCerrar = () => { const h=hora();
+      this.setState({ ticket:{ titulo:'CORTE DE CAJA', fecha:hoy+' · '+h, rows:[{k:'Fondo inicial', v:fmt(this.state.fondo)},{k:'Ingresos', v:fmt(ingresos)},{k:'Egresos', v:fmt(egresos)}], totalLabel:'EFECTIVO FINAL', total:fmt(efectivo) },
+        cajaOpen:false, fondo:0, apertura:'', movimientos:[], cobroId:null });
+      this.kickDrawer('Corte de caja');
+    };
+
+    const doAbrirCajon = () => this.kickDrawer('Apertura manual');
+
+    // ---- PIN de seguridad para apertura / cierre / abrir cajón ----
+    const PIN = '1234';
+    const pinTitles = { apertura:'Apertura de caja', cierre:'Cierre / corte de caja', cajon:'Abrir cajón de efectivo' };
+    const requirePin = (action) => this.setState({ pinGate:{ action, pin:'', error:'' } });
+    const setPin = e => { const v=e.target.value; this.setState(s=>({ pinGate:{...s.pinGate, pin:v, error:''} })); };
+    const cancelPin = () => this.setState({ pinGate:null });
+    const confirmPin = () => { const g=this.state.pinGate; if(!g) return;
+      if(g.pin!==PIN){ this.setState(s=>({ pinGate:{...s.pinGate, pin:'', error:'PIN incorrecto'} })); return; }
+      const act=g.action; this.setState({ pinGate:null });
+      if(act==='apertura') this.setState({ showOpenModal:true });
+      else if(act==='cierre') doCerrar();
+      else if(act==='cajon') doAbrirCajon();
+    };
+
+    // ---- enviar / imprimir cotización ----
+    const openSend = () => this.setState({ showSend:true, sendTo:'', sentInfo:null });
+    const setSendMethod = m => this.setState({ sendMethod:m, sendTo:'' });
+    const setSendTo = e => { const v=e.target.value; this.setState({ sendTo:v }); };
+    const confirmSend = () => { const to=this.state.sendTo.trim(); if(!to) return;
+      this.setState({ showSend:false, sent:true, sentInfo:{ method:this.state.sendMethod, to } }); };
+    const quoteRows = this.state.cart.map(i=>{ const s=this.state.catalog[i]; return { k:s.name, v:fmt(s.price), mod:s.mod }; });
+    const imprimirCot = () => { const h=hora(); const folio='COT-'+String(Date.now()).slice(-6);
+      this.setState({ ticket:{ kind:'cotizacion', titulo:'COTIZACIÓN', warn:true, folio, vigencia:'Vigencia: 15 días naturales',
+        fecha:hoy+' · '+h, rows:quoteRows, totalLabel:'TOTAL ESTIMADO', total:fmt(cartTotal) } }); };
+
+    // ---- datos de empresa (store) ----
+    const empresa = window.ApolloStore ? window.ApolloStore.getEmpresa() : { nombre:'RADIODIAGNÓSTICO', giro:'Centro de imagen y diagnóstico', direccion:'', tel:'', rfc:'', logo:'' };
+    const ef = this.state.empresaForm || empresa;
+    const openEmpresa = () => this.setState({ showEmpresa:true, empresaForm:{ ...empresa } });
+    const closeEmpresa = () => this.setState({ showEmpresa:false });
+    const setE = {}; ['nombre','giro','direccion','tel','rfc'].forEach(k=> setE[k] = e => { const v=e.target.value; this.setState(s=>({ empresaForm:{...s.empresaForm, [k]:v} })); });
+    const onLogo = e => { const file=e.target.files && e.target.files[0]; if(!file) return; const r=new FileReader(); r.onload=()=>this.setState(s=>({ empresaForm:{...s.empresaForm, logo:r.result} })); r.readAsDataURL(file); };
+    const clearLogo = () => this.setState(s=>({ empresaForm:{...s.empresaForm, logo:''} }));
+    const saveEmpresa = () => { if(window.ApolloStore) window.ApolloStore.setEmpresa(this.state.empresaForm||{}); this.setState({ showEmpresa:false }); };
+
+    // ---- worklist compartida ----
+    const WSM = { recibido:{c:'#5aa6f0',bg:'rgba(90,166,240,0.14)',label:'Recibido'}, pendiente:{c:'#e0a64a',bg:'rgba(224,166,74,0.14)',label:'Pendiente'}, enviado:{c:'#3ecf8e',bg:'rgba(62,207,142,0.14)',label:'Enviado'}, error:{c:'#e5675f',bg:'rgba(229,103,95,0.14)',label:'Error'} };
+    const wlBadge = k => { const m=WSM[k]||WSM.recibido; return { label:m.label, style:{ display:'inline-flex', alignItems:'center', gap:6, padding:'3px 10px', borderRadius:999, fontSize:11, fontWeight:600, color:m.c, background:m.bg, whiteSpace:'nowrap', flexShrink:0 }, dot:{ width:6, height:6, borderRadius:999, background:m.c, flexShrink:0 } }; };
+    const wlAll = window.ApolloStore ? window.ApolloStore.getWorklist() : [];
+    const wq = this.state.wq.trim().toLowerCase();
+    const worklistV = wlAll.filter(w=> !wq || w.pac.toLowerCase().includes(wq) || w.est.toLowerCase().includes(wq) || w.id.toLowerCase().includes(wq))
+      .map(w => ({ ...w, badge: wlBadge(w.s), fueraEquipo: !w.enEquipo,
+        del: () => this.setState({ confirmDel:{ id:w.id, pac:w.pac, est:w.est } }) }));
+    const confirmDelObj = this.state.confirmDel;
+    const doDelWl = () => { const c=this.state.confirmDel; if(c && window.ApolloStore) window.ApolloStore.removeStudy(c.id); this.setState({ confirmDel:null }); };
+
+    const abrirCajon = () => this.kickDrawer('Apertura manual');
+
+    return {
+      inp, lbl,
+      tab:{ catalogo:tabOf('catalogo'), worklist:tabOf('worklist'), ordenes:tabOf('ordenes'), caja:tabOf('caja') },
+      goCatalogo:()=>this.setState({sub:'catalogo'}), goWorklist:()=>this.setState({sub:'worklist'}), goOrdenes:()=>this.setState({sub:'ordenes'}), goCaja:()=>this.setState({sub:'caja'}),
+      isCatalogo: sub==='catalogo', isWorklist: sub==='worklist', isOrdenes: sub==='ordenes', isCaja: sub==='caja',
+      // catalogo
+      q:this.state.q, onQ:e=>this.setState({q:e.target.value}),
+      cat, cartItems,
+      cartCount:this.state.cart.length, cartEmpty:this.state.cart.length===0, cartHas:this.state.cart.length>0,
+      cartTotalFmt:fmt(cartTotal), sent:this.state.sent,
+      enviarCot:openSend, imprimirCot,
+      showSend:this.state.showSend, closeSend:()=>this.setState({showSend:false}),
+      sendMethod:this.state.sendMethod, setSendWhats:()=>setSendMethod('whatsapp'), setSendCorreo:()=>setSendMethod('correo'),
+      sendIsWhats:this.state.sendMethod==='whatsapp', sendIsCorreo:this.state.sendMethod==='correo',
+      sendTabWhats: this.state.sendMethod==='whatsapp'?payTabOn:payTabBase, sendTabCorreo: this.state.sendMethod==='correo'?payTabOn:payTabBase,
+      sendTo:this.state.sendTo, setSendTo, confirmSend,
+      sendPlaceholder: this.state.sendMethod==='whatsapp'?'Ej. 638 123 4567':'correo@dominio.com',
+      sentInfo:this.state.sentInfo, sentLabel: this.state.sentInfo ? ((this.state.sentInfo.method==='whatsapp'?'WhatsApp ':'Correo ')+this.state.sentInfo.to) : '',
+      openAlta:()=>this.setState({showAlta:true}), closeAlta:()=>this.setState({showAlta:false}),
+      // empresa
+      empresa, empresaHasLogo: !!empresa.logo,
+      showEmpresa:this.state.showEmpresa, openEmpresa, closeEmpresa,
+      empresaForm: ef, setE, onLogo, clearLogo, saveEmpresa, empresaFormHasLogo: !!ef.logo, empresaFormNoLogo: !ef.logo,
+      // worklist
+      worklistV, wq:this.state.wq, onWQ:e=>this.setState({wq:e.target.value}),
+      wlHas: worklistV.length>0, wlEmpty: worklistV.length===0,
+      confirmDelShow: !!confirmDelObj, confirmDel: confirmDelObj||{}, doDelWl, cancelDel:()=>this.setState({confirmDel:null}),
+      // ordenes
+      oq:this.state.oq, onOQ:e=>this.setState({oq:e.target.value}), ordersV,
+      // patient form
+      showPatient:this.state.showPatient, openPatient:()=>this.setState({showPatient:true}), closePatient:()=>this.setState({showPatient:false}),
+      patient:this.state.patient, setP, generarOrdenes,
+      canalOpts:['Mostrador','Teléfono','WhatsApp','Convenio','Referido'], sexoOpts:['Femenino','Masculino'],
+      // alta
+      showAlta:this.state.showAlta, alta:this.state.alta, setA, saveAlta, altaCita:this.state.alta.requiereCita,
+      toggleCita:()=>this.setState(s=>({alta:{...s.alta, requiereCita:!s.alta.requiereCita}})),
+      citaCheck: this.state.alta.requiereCita ? checkOn : checkBase,
+      modOpts:['DX','US','CT','MR','MG','PT','NM'],
+      // caja
+      cajaIsOpen:this.state.cajaOpen, cajaClosed:!this.state.cajaOpen,
+      openCaja:()=>requirePin('apertura'), showOpenModal:this.state.showOpenModal, closeOpenModal:()=>this.setState({showOpenModal:false}),
+      openFondo:this.state.openFondo, setFondo:e=>this.setState({openFondo:e.target.value}), confirmOpen,
+      apertura:this.state.apertura, fondoFmt:fmt(this.state.fondo), efectivoFmt:fmt(efectivo),
+      porCobrar, porCobrarHas:porCobrar.length>0, porCobrarEmpty:porCobrar.length===0,
+      movsV,
+      openCashIn:()=>this.setState({showCash:'entrada'}), openCashOut:()=>this.setState({showCash:'egreso'}),
+      showCash:!!this.state.showCash, cashTitle:this.state.showCash==='egreso'?'Egreso de efectivo':'Entrada de efectivo',
+      cashForm:this.state.cashForm, setCash, confirmCash, closeCash:()=>this.setState({showCash:null}),
+      cerrarCaja:()=>requirePin('cierre'), abrirCajon:()=>requirePin('cajon'),
+      pinShow:!!this.state.pinGate, pinTitle:this.state.pinGate?pinTitles[this.state.pinGate.action]:'', pinValue:this.state.pinGate?this.state.pinGate.pin:'', pinError:this.state.pinGate?this.state.pinGate.error:'', setPin, confirmPin, cancelPin,
+      drawerPulse:this.state.drawerPulse, drawerReason:this.state.drawerReason,
+      // cobro
+      cobroSel, cobroNone:!cobroSel,
+      cobro: cobro ? { ...cobro, priceFmt:fmt(cobro.precio) } : {},
+      payEfectivo:()=>this.setState({pay:'efectivo'}), payTarjeta:()=>this.setState({pay:'tarjeta'}),
+      payTab:{ efectivo: payIsEfectivo?payTabOn:payTabBase, tarjeta: !payIsEfectivo?payTabOn:payTabBase },
+      payIsEfectivo, payIsTarjeta:!payIsEfectivo,
+      recibido:this.state.recibido, setRecibido:e=>this.setState({recibido:e.target.value}),
+      cambioFmt: fmt(Math.max(0, cambioVal)), cambioColor: cambioVal<0 ? '#e5675f' : '#3ecf8e',
+      factura:this.state.factura, toggleFactura:()=>this.setState(s=>({factura:!s.factura})),
+      checkStyle: this.state.factura ? checkOn : checkBase,
+      fact:this.state.fact, setF,
+      regimenOpts:['601 General de Ley Personas Morales','605 Sueldos y Salarios','612 PF Actividad Empresarial','616 Sin obligaciones fiscales','626 RESICO'],
+      usoOpts:['G03 Gastos en general','D01 Honorarios médicos','S01 Sin efectos fiscales','P01 Por definir'],
+      cobrar, cobrarStyle, cobrarLabel: this.state.pay==='efectivo' ? 'Cobrar e imprimir ticket' : 'Registrar pago con tarjeta',
+      // ticket
+      ticketOpen:!!this.state.ticket, ticket:this.state.ticket||{rows:[]},
+      ticketWarn: !!(this.state.ticket && this.state.ticket.warn),
+      ticketNoWarn: !(this.state.ticket && this.state.ticket.warn),
+      ticketHasFolio: !!(this.state.ticket && this.state.ticket.folio),
+      ticketAccent: { height:6, borderRadius:'6px 6px 0 0', background: (this.state.ticket && this.state.ticket.warn) ? '#e0a64a' : '#3ecf8e' },
+      printTicket:()=>{ try{ window.print(); }catch(e){} }, closeTicket:()=>this.setState({ticket:null}),
+    };
+  }
+}
+</script>
+</body>
+</html>
