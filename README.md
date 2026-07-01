@@ -6,7 +6,7 @@ sirven desde `public/prototype/` mientras cada flujo se migra de forma increment
 
 ## Requisitos
 
-- Node.js 20.19 o superior, o Node.js 22.12 o superior
+- Node.js compatible con `^20.19.0 || >=22.12.0`
 - npm 10 o superior
 
 ## Instalación
