@@ -16,6 +16,8 @@ type RequestOptions = Omit<RequestInit, 'body'> & {
   body?: BodyInit | null;
   /** Valor que debe serializarse como JSON. No puede combinarse con body. */
   json?: unknown;
+  /** Tiempo máximo de espera en milisegundos antes de abortar la petición. */
+  timeoutMs?: number;
 };
 
 async function readResponsePayload(response: Response): Promise<unknown> {
@@ -56,7 +58,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     throw new Error('Apollo API paths must start with "/".');
   }
 
-  const { body, json, headers: initialHeaders, ...requestInit } = options;
+  const { body, json, headers: initialHeaders, timeoutMs, signal, ...requestInit } = options;
   if (body !== undefined && body !== null && json !== undefined) {
     throw new Error('Use either "body" or "json" in an Apollo API request, not both.');
   }
@@ -66,11 +68,41 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     headers.set('Content-Type', 'application/json');
   }
 
-  const response = await fetch(`${apiConfig.baseUrl}${path}`, {
-    ...requestInit,
-    headers,
-    body: json === undefined ? body : JSON.stringify(json),
-  });
+  let didTimeout = false;
+  const controller = timeoutMs ? new AbortController() : undefined;
+  const timeoutId = controller
+    ? globalThis.setTimeout(() => {
+      didTimeout = true;
+      controller.abort();
+    }, timeoutMs)
+    : undefined;
+
+  if (signal && controller) {
+    if (signal.aborted) {
+      controller.abort();
+    }
+    signal.addEventListener('abort', () => controller.abort(), { once: true });
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(`${apiConfig.baseUrl}${path}`, {
+      ...requestInit,
+      headers,
+      body: json === undefined ? body : JSON.stringify(json),
+      signal: controller?.signal ?? signal,
+    });
+  } catch (error) {
+    if (didTimeout && error instanceof DOMException && error.name === 'AbortError') {
+      throw new Error(`Apollo API request timed out after ${timeoutMs}ms.`);
+    }
+
+    throw error;
+  } finally {
+    if (timeoutId !== undefined) {
+      globalThis.clearTimeout(timeoutId);
+    }
+  }
 
   const payload = await readResponsePayload(response);
 
