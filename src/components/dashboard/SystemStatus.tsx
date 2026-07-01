@@ -62,9 +62,16 @@ function normalizePacsError(error: unknown): ServiceStatus {
 function normalizePacsStatus(responseStatus: unknown): ServiceStatus {
   if (typeof responseStatus === 'string') {
     const normalized = responseStatus.toLowerCase();
-    if (['unavailable', 'offline', 'degraded', 'error'].includes(normalized)) {
+    if (['unavailable', 'offline', 'degraded'].includes(normalized)) {
       return {
-        state: normalized === 'unavailable' ? 'unavailable' : 'offline',
+        state: 'unavailable',
+        message: `PACS reportó estado: ${responseStatus}.`,
+      };
+    }
+
+    if (normalized === 'error') {
+      return {
+        state: 'error',
         message: `PACS reportó estado: ${responseStatus}.`,
       };
     }

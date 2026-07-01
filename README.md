@@ -115,5 +115,5 @@ privada. Este repositorio no incluye credenciales ni una integración DICOM real
 
 - El diseño exportado sigue disponible como prototipo legacy.
 - Los datos del prototipo y de `src/mocks/` son simulados.
-- No existe todavía integración con Apollo, Orthanc o un visor DICOM real.
+- Existe integración inicial únicamente con health checks de Apollo. No existe todavía integración de pacientes, estudios, Orthanc directo ni visor DICOM real.
 - Caja y facturación permanecen sin cambios dentro del prototipo.
