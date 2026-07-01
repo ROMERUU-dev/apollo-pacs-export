@@ -45,10 +45,44 @@ npm run preview
 
 | Variable | Descripción | Valor de desarrollo |
 |---|---|---|
-| `VITE_APOLLO_API_URL` | URL base del backend/API de Apollo | `http://localhost:8000` |
+| `VITE_APOLLO_API_URL` | URL base versionada del backend/API de Apollo | `http://localhost:8000/api/v1` |
 
 Las variables con prefijo `VITE_` quedan disponibles en el navegador. Nunca deben
 contener contraseñas, secretos, API keys ni credenciales de Orthanc.
+
+## Integración Fase 2: health checks
+
+Esta fase consume únicamente endpoints de estado ya disponibles en Apollo:
+
+- `GET /api/v1/health`
+- `GET /api/v1/pacs/health`
+
+Para probarlo localmente:
+
+1. Levanta el backend Apollo en `http://localhost:8000`.
+2. Configura CORS en el backend para permitir el origen del frontend. Ejemplo:
+
+   ```bash
+   APP_CORS_ORIGINS=http://localhost:5173
+   ```
+
+3. Configura el frontend:
+
+   ```bash
+   cp .env.example .env.local
+   ```
+
+4. Ejecuta Vite:
+
+   ```bash
+   npm run dev
+   ```
+
+El frontend usa `VITE_APOLLO_API_URL` como base. Con el valor de desarrollo
+`http://localhost:8000/api/v1`, las consultas reales quedan limitadas a:
+
+- `${VITE_APOLLO_API_URL}/health`
+- `${VITE_APOLLO_API_URL}/pacs/health`
 
 ## Arquitectura inicial
 
