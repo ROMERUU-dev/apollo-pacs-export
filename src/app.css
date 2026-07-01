@@ -1,0 +1,33 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap');
+
+:root {
+  color: #e9ebf1;
+  background: #08090c;
+  font-family: 'Outfit', system-ui, sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; min-height: 100vh; }
+a { color: inherit; }
+
+.app-shell {
+  min-height: 100vh;
+  padding: 32px clamp(20px, 5vw, 72px);
+  background: radial-gradient(1000px 560px at 50% -10%, #171327 0%, #0a0b10 58%, #08090c 100%);
+}
+
+.app-header { display: flex; align-items: center; gap: 12px; max-width: 1100px; margin: 0 auto; }
+.brand-mark { width: 38px; height: 38px; border: 8px solid #8b7bff; border-radius: 50%; box-shadow: 0 4px 18px rgba(124, 108, 255, .35); }
+.app-header h1 { margin: 0; font: 700 22px 'Space Grotesk', sans-serif; }
+.app-header h1 span { color: #8b7bff; }
+.app-header p { margin: 3px 0 0; color: #646c7d; font-size: 12px; }
+
+.intro { max-width: 1100px; margin: 72px auto 28px; }
+.intro p { max-width: 680px; color: #9aa3b4; font-size: 17px; line-height: 1.65; }
+.screen-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px; max-width: 1100px; margin: 0 auto; }
+.screen-card { display: flex; flex-direction: column; gap: 28px; padding: 22px; border: 1px solid #262b35; border-radius: 16px; background: #161a22; text-decoration: none; transition: border-color .15s, transform .15s; }
+.screen-card:hover { border-color: #7c6cff; transform: translateY(-2px); }
+.screen-card strong { font: 600 18px 'Space Grotesk', sans-serif; }
+.screen-card span { color: #8b7bff; font-size: 13px; font-weight: 600; }
