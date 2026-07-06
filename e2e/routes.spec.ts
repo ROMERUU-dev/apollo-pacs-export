@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 
 test.beforeEach(async ({ page }) => {
   let worklistStatus = 'scheduled';
+  let addOnCreated = false;
   await page.route('**/api/v1/**', async (route) => {
     const path = new URL(route.request().url()).pathname;
     let body: unknown = [];
@@ -25,14 +26,31 @@ test.beforeEach(async ({ page }) => {
     if (path.endsWith('/orders/order-1/schedule')) body = { id: 'order-1', patient_id: 'p1', accession_number: 'AP260705000002', modality: 'DX', status: 'scheduled', priority: 'routine', description: 'Tórax AP', scheduled_at: new Date().toISOString(), scheduled_duration_minutes: 15 };
     if (path.endsWith('/orders/order-1/cancel')) body = { id: 'order-1', status: 'cancelled', accession_number: 'AP260705000002' };
     if (path.endsWith('/cash/access')) body = route.request().method() === 'POST' ? { unlocked: true, mode: 'development_bypass', expires_at: new Date(Date.now() + 900000).toISOString() } : { unlocked: false, mode: 'locked' };
-    if (path.endsWith('/operational-worklist')) body = [{
-      order_id: 'order-1',
-      patient: { id: 'p1', mrn: 'DEMO-001', first_name: 'Prueba', last_name: 'Paciente', middle_name: null, birth_date: '1990-01-01', sex: 'unknown' },
-      procedure: { accession_number: 'ACC-DEMO', modality: 'DX', status: worklistStatus, priority: 'routine', description: 'Tórax AP', scheduled_at: new Date().toISOString() },
-    }];
+    if (path.endsWith('/operational-worklist')) {
+      body = [{
+        order_id: 'order-1', encounter_id: 'encounter-1', imaging_service_request_id: 'isr-1',
+        patient: { id: 'p1', mrn: 'DEMO-001', first_name: 'Prueba', last_name: 'Paciente', middle_name: null, birth_date: '1990-01-01', sex: 'unknown' },
+        procedure: { accession_number: 'ACC-DEMO', modality: 'DX', status: worklistStatus, priority: 'routine', description: 'Tórax AP', scheduled_at: new Date().toISOString() },
+      }];
+      if (addOnCreated) (body as unknown[]).push({
+        order_id: 'order-2', encounter_id: 'encounter-1', imaging_service_request_id: 'isr-2',
+        patient: { id: 'p1', mrn: 'DEMO-001', first_name: 'Prueba', last_name: 'Paciente', middle_name: null, birth_date: '1990-01-01', sex: 'unknown' },
+        procedure: { accession_number: 'ACC-DEMO-ADDON', modality: 'US', status: 'scheduled', priority: 'routine', description: 'Ultrasonido mamario', scheduled_at: new Date().toISOString() },
+      });
+    }
     if (path.endsWith('/orders/order-1/status') && route.request().method() === 'PATCH') {
       worklistStatus = route.request().postDataJSON().status;
       body = { id: 'order-1', status: worklistStatus };
+    }
+    if (path.endsWith('/procedure-definitions') && route.request().method() === 'GET') body = [
+      { id: 'pd-us-1', code: 'PD-US', name: 'Ultrasonido mamario', modality: 'US', is_active: true },
+    ];
+    if (path.includes('/add-on-procedures') && route.request().method() === 'POST') {
+      addOnCreated = true;
+      body = {
+        id: 'order-2', patient_id: 'p1', accession_number: 'ACC-DEMO-ADDON', modality: 'US',
+        status: 'scheduled', priority: 'routine', encounter_id: 'encounter-1', imaging_service_request_id: 'isr-2',
+      };
     }
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
   });
@@ -114,4 +132,21 @@ test('el portal canjea y elimina el token de la barra de direcciones', async ({ 
   await page.goto('/portal?token=opaque-test-token');
   await expect(page).toHaveURL(/\/portal$/);
   await expect(page.getByRole('heading', { name: 'Patricia Prueba' })).toBeVisible();
+});
+
+test('Lote C4: el técnico agrega un estudio por indicación verbal del médico y aparece en Worklist', async ({ page }) => {
+  await page.goto('/tecnico');
+  await expect(page.getByText('1 estudios programados o activos')).toBeVisible();
+
+  await page.getByRole('button', { name: '＋ Agregar estudio' }).click();
+
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByRole('heading', { name: 'Paciente, Prueba' })).toBeVisible();
+  await dialog.getByPlaceholder(/ultrasonido mamario/i).fill('ultrasonido');
+  await dialog.getByText('ULTRASONIDO MAMARIO').click();
+  await dialog.getByPlaceholder(/Dra\. Gómez/i).fill('Dra. Gómez');
+  await dialog.getByRole('button', { name: 'Agregar estudio', exact: true }).click();
+
+  await expect(page.getByText('2 estudios programados o activos')).toBeVisible();
+  await expect(page.getByText('ACC-DEMO-ADDON')).toBeVisible();
 });
