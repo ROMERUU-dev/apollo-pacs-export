@@ -1,119 +1,52 @@
 # Apollo PACS frontend
 
-Base de migración gradual del prototipo visual de Apollo PACS hacia una aplicación
-React mantenible. Las pantallas exportadas originales se conservan sin cambios y se
-sirven desde `public/prototype/` mientras cada flujo se migra de forma incremental.
+Aplicación React para operación clínica y administrativa de Apollo PACS. Sustituye
+los prototipos `.dc.html` con rutas navegables y conectadas a FastAPI.
 
-## Requisitos
+## Requisitos y comandos
 
-- Node.js compatible con `^20.19.0 || >=22.12.0`
-- npm 10 o superior
-
-## Instalación
+- Node.js `^20.19.0 || >=22.12.0`
+- npm 10+
 
 ```bash
 npm install
-cp .env.example .env.local
-```
-
-## Desarrollo
-
-```bash
 npm run dev
-```
-
-Vite mostrará la URL local. La página inicial enlaza las cuatro vistas preservadas:
-
-- Apollo PACS
-- Recepción
-- Portal Paciente
-- ViewerShell
-
-## Build de producción
-
-```bash
 npm run build
+npm test
+npm run test:e2e
 ```
 
-El resultado se genera en `dist/`. Para revisarlo localmente:
+Vite publica el frontend en desarrollo y redirige `/api` a
+`http://localhost:8000`. `VITE_APOLLO_API_URL` permite reemplazar la base de la
+API; en producción el valor recomendado es `/api/v1`.
+
+El catálogo visible proviene siempre de Apollo API. Para cargar en una base de
+desarrollo los 18 precios de referencia de Recepción, ejecuta desde
+`apollo_server`:
 
 ```bash
-npm run preview
+PYTHONPATH=src python3 scripts/seed-demo-catalog.py
 ```
 
-## Variables de entorno
+El seed es idempotente: solo inserta códigos demo faltantes y nunca reemplaza
+precios o registros existentes. No forma parte del arranque de producción.
 
-| Variable | Descripción | Valor de desarrollo |
-|---|---|---|
-| `VITE_APOLLO_API_URL` | URL base versionada del backend/API de Apollo | `http://localhost:8000/api/v1` |
+## Rutas
 
-Las variables con prefijo `VITE_` quedan disponibles en el navegador. Nunca deben
-contener contraseñas, secretos, API keys ni credenciales de Orthanc.
+- `/`: panel según los roles de la sesión.
+- `/recepcion`: pacientes, órdenes, catálogo MXN/USD, tasas, cotizaciones, caja y enlaces.
+- `/tecnico`: worklist, estudios y lanzamiento de OHIF.
+- `/medico`: reportes versionados y enlaces temporales.
+- `/visor`: lanzamiento controlado de OHIF.
+- `/portal`: canje y uso de un enlace de paciente.
 
-## Integración Fase 2: health checks
+Las rutas internas consultan `GET /api/v1/session` y se limitan a los roles
+`apollo-receptionist`, `apollo-technician` y `apollo-physician`. El portal usa una
+cookie HttpOnly emitida por el backend. El navegador nunca recibe credenciales de
+Orthanc.
 
-Esta fase consume únicamente endpoints de estado ya disponibles en Apollo:
+## Despliegue
 
-- `GET /api/v1/health`
-- `GET /api/v1/pacs/health`
-
-Para probarlo localmente:
-
-1. Levanta el backend Apollo en `http://localhost:8000`.
-2. Configura CORS en el backend para permitir el origen del frontend. Ejemplo:
-
-   ```bash
-   APP_CORS_ORIGINS=http://localhost:5173
-   ```
-
-3. Configura el frontend:
-
-   ```bash
-   cp .env.example .env.local
-   ```
-
-4. Ejecuta Vite:
-
-   ```bash
-   npm run dev
-   ```
-
-El frontend usa `VITE_APOLLO_API_URL` como base. Con el valor de desarrollo
-`http://localhost:8000/api/v1`, las consultas reales quedan limitadas a:
-
-- `${VITE_APOLLO_API_URL}/health`
-- `${VITE_APOLLO_API_URL}/pacs/health`
-
-## Arquitectura inicial
-
-```text
-src/
-├── api/                 Transporte preparado para la API de Apollo
-├── components/states/  Estados loading, error y empty
-├── mocks/               Datos ficticios claramente aislados
-└── models/              Interfaces iniciales del dominio PACS
-
-public/prototype/        Exportación visual legacy preservada
-```
-
-La función genérica de `src/api/client.ts` no define endpoints. Los servicios por
-dominio se agregarán cuando exista un contrato aprobado del backend de Apollo.
-
-## Límite de seguridad
-
-El navegador debe comunicarse exclusivamente con el backend/API de Apollo.
-
-```text
-Frontend Apollo PACS → Backend/API Apollo → Orthanc
-```
-
-**Orthanc no debe llamarse directamente desde el navegador.** Sus credenciales,
-configuración y API deben permanecer protegidas en el backend o en infraestructura
-privada. Este repositorio no incluye credenciales ni una integración DICOM real.
-
-## Estado actual
-
-- El diseño exportado sigue disponible como prototipo legacy.
-- Los datos del prototipo y de `src/mocks/` son simulados.
-- Existe integración inicial únicamente con health checks de Apollo. No existe todavía integración de pacientes, estudios, Orthanc directo ni visor DICOM real.
-- Caja y facturación permanecen sin cambios dentro del prototipo.
+El contenedor compila con Node 22 y sirve el bundle con Nginx. La regla
+`try_files ... /index.html` permite recargar directamente cualquier ruta React.
+No se cargan fuentes, scripts ni estilos desde dominios externos.
