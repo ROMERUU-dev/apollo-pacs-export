@@ -11,7 +11,7 @@ export class ApiError extends Error {
   }
 }
 
-type RequestOptions = Omit<RequestInit, 'body'> & {
+export type RequestOptions = Omit<RequestInit, 'body'> & {
   /** Body nativo de Fetch: FormData, Blob, URLSearchParams, string, etc. */
   body?: BodyInit | null;
   /** Valor que debe serializarse como JSON. No puede combinarse con body. */
@@ -53,7 +53,15 @@ function getErrorMessage(payload: unknown, response: Response): string {
  * Transporte HTTP genérico para la futura API de Apollo.
  * Los endpoints se agregarán cuando exista un contrato aprobado.
  */
-export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T | undefined> {
+export interface ApiResponse<T> {
+  data: T | undefined;
+  response: Response;
+}
+
+export async function apiRequestWithResponse<T>(
+  path: string,
+  options: RequestOptions = {},
+): Promise<ApiResponse<T>> {
   if (!path.startsWith('/')) {
     throw new Error('Apollo API paths must start with "/".');
   }
@@ -88,6 +96,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   try {
     response = await fetch(`${apiConfig.baseUrl}${path}`, {
       ...requestInit,
+      credentials: requestInit.credentials ?? 'include',
       headers,
       body: json === undefined ? body : JSON.stringify(json),
       signal: controller?.signal ?? signal,
@@ -115,5 +124,10 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     );
   }
 
-  return payload as T;
+  return { data: payload as T, response };
+}
+
+export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T | undefined> {
+  const result = await apiRequestWithResponse<T>(path, options);
+  return result.data;
 }
