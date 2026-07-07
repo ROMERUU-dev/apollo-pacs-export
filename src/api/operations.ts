@@ -38,6 +38,38 @@ export interface FinancialReviewResolveRequest {
   catalog_item_id: string;
   adjustment?: AdjustmentCreateRequest | null;
 }
+export interface Payer { id: string; code: string; name: string; notes?: string; is_active: boolean; created_at: string; updated_at: string }
+export interface PayerContract {
+  id: string; payer_id: string; name: string; contract_number?: string;
+  valid_from: string; valid_to?: string; is_active: boolean; notes?: string; created_at: string; updated_at: string;
+}
+export type TariffEligibility = 'eligible' | 'ineligible';
+export interface PayerProcedureTariff {
+  id: string; contract_id: string; procedure_definition_id: string; eligibility: TariffEligibility;
+  tariff_amount?: string; currency?: Currency; external_code?: string; requires_authorization: boolean;
+  valid_from: string; valid_to?: string; notes?: string; is_active: boolean; created_by: string; created_at: string; updated_at: string;
+}
+export interface ProcedureTariffMatrixRow {
+  payer_id: string; payer_code: string; payer_name: string;
+  contract_id?: string; contract_name?: string; tariff?: PayerProcedureTariff;
+}
+export interface EncounterCoverage {
+  id: string; encounter_id: string; payer_id: string; contract_id?: string;
+  member_reference?: string; authorization_number?: string; is_primary: boolean; is_active: boolean;
+  created_by: string; created_at: string;
+}
+export type PayerEligibilityStatus = 'eligible' | 'ineligible' | 'unconfigured';
+export type PayerResolutionSource = 'contract_tariff' | 'authorized_override';
+export interface PayerPricingResolution {
+  id: string; order_id: string; encounter_coverage_id?: string; payer_id: string; contract_id?: string;
+  procedure_definition_id: string; tariff_id?: string; eligibility_status: PayerEligibilityStatus;
+  tariff_amount?: string; currency?: Currency; external_code?: string; requires_authorization: boolean;
+  authorization_reference?: string; resolution_source: PayerResolutionSource; reason?: string;
+  resolved_by: string; resolved_at: string;
+}
+export interface PayerResolutionOverrideRequest {
+  amount: string; currency?: Currency; authorization_reference: string; reason: string;
+}
 export interface ExchangeRate { id: string; mxn_per_usd: string; effective_at: string; created_by: string; is_active: boolean }
 export interface QuoteLine { id: string; name_snapshot: string; quantity: string; currency: Currency; unit_amount: string; mxn_per_usd?: string; line_total_mxn: string }
 export interface Quote { id: string; patient_id?: string; status: string; total_mxn: string; created_at: string; lines: QuoteLine[] }
@@ -109,6 +141,30 @@ export const operationsApi = {
     required<Adjustment>(`/adjustments/${adjustmentId}/reverse`, { method: 'POST', json: { reason } }),
   resolveFinancialReview: (orderId: string, value: FinancialReviewResolveRequest, idempotencyKey = crypto.randomUUID()) =>
     required<Charge>(`/orders/${orderId}/resolve-financial-review`, { method: 'POST', headers: { 'Idempotency-Key': idempotencyKey }, json: value }),
+  payers: () => required<Payer[]>('/payers'),
+  createPayer: (value: { code: string; name: string; notes?: string | null }) => required<Payer>('/payers', { method: 'POST', json: value }),
+  updatePayer: (payerId: string, value: { code: string; name: string; notes?: string | null; is_active: boolean }) =>
+    required<Payer>(`/payers/${payerId}`, { method: 'PUT', json: value }),
+  payerContracts: (payerId: string) => required<PayerContract[]>(`/payers/${payerId}/contracts`),
+  createPayerContract: (payerId: string, value: { name: string; contract_number?: string | null; valid_from: string; valid_to?: string | null }) =>
+    required<PayerContract>(`/payers/${payerId}/contracts`, { method: 'POST', json: value }),
+  updatePayerContract: (contractId: string, value: { name: string; contract_number?: string | null; valid_from: string; valid_to?: string | null; is_active: boolean }) =>
+    required<PayerContract>(`/payer-contracts/${contractId}`, { method: 'PUT', json: value }),
+  procedurePayerTariffs: (definitionId: string) => required<ProcedureTariffMatrixRow[]>(`/procedure-definitions/${definitionId}/payer-tariffs`),
+  createPayerTariff: (
+    contractId: string,
+    value: { procedure_definition_id: string; eligibility: TariffEligibility; tariff_amount?: string | null; currency?: Currency; external_code?: string | null; requires_authorization?: boolean; valid_from: string; valid_to?: string | null },
+    idempotencyKey = crypto.randomUUID(),
+  ) => required<PayerProcedureTariff>(`/payer-contracts/${contractId}/tariffs`, { method: 'POST', headers: { 'Idempotency-Key': idempotencyKey }, json: value }),
+  updatePayerTariff: (tariffId: string, value: { procedure_definition_id: string; eligibility: TariffEligibility; tariff_amount?: string | null; currency?: Currency; external_code?: string | null; requires_authorization?: boolean; valid_from: string; valid_to?: string | null; is_active?: boolean }) =>
+    required<PayerProcedureTariff>(`/payer-tariffs/${tariffId}`, { method: 'PUT', json: value }),
+  encounterCoverage: (encounterId: string) => apiRequest<EncounterCoverage>(`/encounters/${encounterId}/coverage`),
+  setEncounterCoverage: (encounterId: string, value: { payer_id: string; contract_id?: string | null; member_reference?: string | null; authorization_number?: string | null; is_primary?: boolean }) =>
+    required<EncounterCoverage>(`/encounters/${encounterId}/coverage`, { method: 'PUT', json: value }),
+  clearEncounterCoverage: (encounterId: string) => apiRequest(`/encounters/${encounterId}/coverage`, { method: 'DELETE' }),
+  payerResolution: (orderId: string) => apiRequest<PayerPricingResolution>(`/orders/${orderId}/payer-resolution`),
+  overridePayerResolution: (orderId: string, value: PayerResolutionOverrideRequest, idempotencyKey = crypto.randomUUID()) =>
+    required<PayerPricingResolution>(`/orders/${orderId}/payer-resolution/override`, { method: 'POST', headers: { 'Idempotency-Key': idempotencyKey }, json: value }),
   rates: () => required<ExchangeRate[]>('/exchange-rates'),
   createRate: (value: string) => required<ExchangeRate>('/exchange-rates', { method: 'POST', json: { mxn_per_usd: value } }),
   quotes: () => required<Quote[]>('/quotes'),

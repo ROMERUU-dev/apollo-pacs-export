@@ -1,10 +1,80 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { operationsApi, type Charge, type Order, type Patient } from '../../api/operations';
-import { ApplyAdjustmentDialog, ResolveFinancialReviewDialog } from '../billing';
+import { operationsApi, type Charge, type EncounterCoverage, type Order, type Patient, type PayerPricingResolution } from '../../api/operations';
+import { ApplyAdjustmentDialog, CoverageDialog, OverridePayerResolutionDialog, ResolveFinancialReviewDialog } from '../billing';
 
 const ADJUSTMENT_TYPE_LABELS: Record<string, string> = {
   percentage_discount: 'Descuento %', fixed_discount: 'Descuento fijo', courtesy: 'Cortesía', social_support: 'Apoyo social',
 };
+
+const ELIGIBILITY_LABELS: Record<string, string> = {
+  eligible: '✓ Elegible', ineligible: '✕ No elegible', unconfigured: '? No configurado',
+};
+
+/** Cobertura de la visita + resolución de pagador para este procedimiento -- una realidad
+ * deliberadamente separada del Charge comercial (Lote F2, docs/decisions/0026): nunca se
+ * mezclan en la misma sección ni se resume como un solo estado. */
+function PayerCoverageSection({ order, onNotice }: { order: Order; onNotice: (message: string) => Promise<void> }) {
+  const [coverage, setCoverage] = useState<EncounterCoverage | null>();
+  const [payerName, setPayerName] = useState('');
+  const [resolution, setResolution] = useState<PayerPricingResolution | null>();
+  const [showCoverage, setShowCoverage] = useState(false);
+  const [showOverride, setShowOverride] = useState(false);
+  const [error, setError] = useState('');
+
+  const load = () => {
+    if (!order.encounter_id) return Promise.resolve();
+    const loads: Promise<unknown>[] = [
+      operationsApi.encounterCoverage(order.encounter_id).then(async (value) => {
+        setCoverage(value ?? null);
+        if (value) {
+          const payers = await operationsApi.payers();
+          setPayerName(payers.find((p) => p.id === value.payer_id)?.name ?? value.payer_id);
+        }
+      }),
+    ];
+    if (order.procedure_definition_id) {
+      loads.push(operationsApi.payerResolution(order.id).then((value) => setResolution(value ?? null)));
+    }
+    return Promise.all(loads).then(() => undefined).catch((requestError: Error) => setError(requestError.message));
+  };
+
+  useEffect(() => { void load(); }, [order.id]);
+
+  if (!order.encounter_id) return null;
+
+  return <div className="payer-coverage-section">
+    <div className="panel-kicker">COBERTURA DE LA VISITA</div>
+    {error && <div className="inline-notice error">{error}</div>}
+    <div className="charge-row">
+      <span>{coverage ? payerName : 'Particular'}</span>
+      <button className="row-action" onClick={() => setShowCoverage(true)}>{coverage ? 'Cambiar' : 'Asignar cobertura'}</button>
+    </div>
+    {coverage && order.procedure_definition_id && resolution !== undefined && (
+      <div className="payer-resolution-row">
+        <span>{resolution ? ELIGIBILITY_LABELS[resolution.eligibility_status] : '? Sin resolución todavía'}</span>
+        {resolution?.eligibility_status === 'eligible' && <b>Tarifa convenio: ${resolution.tariff_amount} {resolution.currency}</b>}
+        {resolution?.eligibility_status !== 'eligible' && (
+          <button className="row-action" onClick={() => setShowOverride(true)}>Autorizar excepción</button>
+        )}
+      </div>
+    )}
+    {showCoverage && (
+      <CoverageDialog
+        encounterId={order.encounter_id}
+        current={coverage ?? undefined}
+        onClose={() => setShowCoverage(false)}
+        onSaved={async (message) => { await load(); await onNotice(message); }}
+      />
+    )}
+    {showOverride && (
+      <OverridePayerResolutionDialog
+        order={order}
+        onClose={() => setShowOverride(false)}
+        onOverridden={async () => { await load(); await onNotice('Excepción autorizada registrada.'); }}
+      />
+    )}
+  </div>;
+}
 
 function localDateTime(value?: string) {
   if (!value) return '';
@@ -43,6 +113,7 @@ function FinancialTab({ order, onNotice }: { order: Order; onNotice: (message: s
 
   if (order.financial_resolution_status === 'review_required') {
     return <div className="financial-tab">
+      <PayerCoverageSection order={order} onNotice={onNotice} />
       <div className="inline-notice warning">Estado financiero: Pendiente de revisión</div>
       <p className="form-note">Este add-on aún no tiene un precio de referencia asignado. No se ha generado ningún cargo ni movimiento de caja.</p>
       <button className="primary-action" onClick={() => setShowResolve(true)}>Resolver</button>
@@ -51,9 +122,10 @@ function FinancialTab({ order, onNotice }: { order: Order; onNotice: (message: s
   }
 
   if (loadError) return <div className="inline-notice error">{loadError}</div>;
-  if (charge === undefined) return <div className="dialog-state">Sin información financiera para esta orden.</div>;
+  if (charge === undefined) return <div className="financial-tab"><PayerCoverageSection order={order} onNotice={onNotice} /><div className="dialog-state">Sin información financiera para esta orden.</div></div>;
 
   return <div className="financial-tab">
+    <PayerCoverageSection order={order} onNotice={onNotice} />
     <div className="charge-breakdown">
       <div className="charge-row"><span>Precio base</span><b>${charge.base_amount} {charge.currency}</b></div>
       {charge.adjustments.filter((a) => a.is_active).map((adjustment) => <div className="charge-row adjustment-row" key={adjustment.id}>
