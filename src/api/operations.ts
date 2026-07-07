@@ -70,6 +70,39 @@ export interface PayerPricingResolution {
 export interface PayerResolutionOverrideRequest {
   amount: string; currency?: Currency; authorization_reference: string; reason: string;
 }
+export type PayerReceivableStatus = 'draft' | 'submitted' | 'accepted' | 'rejected' | 'disputed' | 'partially_paid' | 'paid' | 'cancelled';
+export interface PayerReceivable {
+  id: string; payer_id: string; payer_contract_id?: string; encounter_coverage_id?: string;
+  payer_pricing_resolution_id: string; order_id: string; procedure_definition_id: string; encounter_id: string;
+  original_amount: string; paid_amount: string; outstanding_amount: string; currency: Currency;
+  status: PayerReceivableStatus; service_date: string; external_code_snapshot?: string; authorization_reference_snapshot?: string;
+  status_updated_at?: string; status_updated_by?: string; status_reason?: string;
+  cancelled_at?: string; cancelled_by?: string; cancelled_reason?: string;
+  created_by: string; created_at: string; updated_at: string;
+}
+export interface PayerReceivableSummary {
+  gross_expected: string; submitted: string; accepted: string; rejected: string; disputed: string; paid: string; outstanding: string; count: number;
+}
+export type PayerSubmissionBatchStatus = 'draft' | 'submitted';
+export interface PayerSubmissionBatch {
+  id: string; payer_id: string; contract_id?: string; batch_number: string;
+  period_from?: string; period_to?: string; status: PayerSubmissionBatchStatus;
+  submitted_at?: string; submitted_by?: string; external_reference?: string; notes?: string;
+  created_by: string; created_at: string;
+}
+export interface PayerSubmissionLine { id: string; batch_id: string; receivable_id: string; amount_submitted_snapshot: string; external_code_snapshot?: string; created_by: string; created_at: string }
+export interface PayerRemittance {
+  id: string; payer_id: string; contract_id?: string; received_date: string; total_amount: string; currency: Currency;
+  external_reference?: string; payment_reference?: string; notes?: string; created_by: string; created_at: string;
+}
+export interface PayerRemittanceSummary { remittance: PayerRemittance; allocated_amount: string; unallocated_amount: string }
+export interface PayerRemittanceAllocation {
+  id: string; remittance_id: string; receivable_id: string; allocated_amount: string;
+  reversed_at?: string; reversed_by?: string; reversal_reason?: string; created_by: string; created_at: string;
+}
+export interface Campaign { id: string; code: string; name: string; valid_from: string; valid_to?: string; is_active: boolean; notes?: string; created_at: string; updated_at: string }
+export interface CampaignAttribution { id: string; campaign_id: string; order_id: string; attributed_by: string; attributed_at: string; notes?: string }
+export interface CampaignSummary { campaign_id: string; procedures_attributed: number; encounters_involved: number; completed_count: number; modalities: Record<string, number> }
 export interface ExchangeRate { id: string; mxn_per_usd: string; effective_at: string; created_by: string; is_active: boolean }
 export interface QuoteLine { id: string; name_snapshot: string; quantity: string; currency: Currency; unit_amount: string; mxn_per_usd?: string; line_total_mxn: string }
 export interface Quote { id: string; patient_id?: string; status: string; total_mxn: string; created_at: string; lines: QuoteLine[] }
@@ -214,4 +247,52 @@ export const operationsApi = {
   revokeDeliveryConsent: (studyId: string, channel: DeliveryChannel) => apiRequest(`/studies/${studyId}/delivery-consent/${channel}`, { method: 'DELETE' }),
   redeem: <T>(token: string) => required<T>('/portal/redeem', { method: 'POST', json: { token } }),
   portalSession: <T>() => required<T>('/portal/session'),
+
+  payerReceivables: (filters: { payer_id?: string; contract_id?: string; status_filter?: string; order_id?: string; encounter_id?: string } = {}) => {
+    const query = new URLSearchParams(Object.entries(filters).filter(([, v]) => v !== undefined) as [string, string][]);
+    return required<PayerReceivable[]>(`/payer-receivables${query.toString() ? `?${query}` : ''}`);
+  },
+  payerReceivable: (receivableId: string) => required<PayerReceivable>(`/payer-receivables/${receivableId}`),
+  payerReceivablesSummary: (filters: { payer_id?: string; contract_id?: string; period_from?: string; period_to?: string } = {}) => {
+    const query = new URLSearchParams(Object.entries(filters).filter(([, v]) => v !== undefined) as [string, string][]);
+    return required<PayerReceivableSummary>(`/payer-receivables/summary${query.toString() ? `?${query}` : ''}`);
+  },
+  materializeReceivable: (orderId: string) => required<PayerReceivable>(`/orders/${orderId}/payer-receivable`, { method: 'POST' }),
+  transitionReceivable: (receivableId: string, value: { status: PayerReceivableStatus; reason?: string | null; external_reference?: string | null }) =>
+    required<PayerReceivable>(`/payer-receivables/${receivableId}/transition`, { method: 'POST', json: value }),
+
+  submissionBatches: (payerId?: string, statusFilter?: string) => {
+    const query = new URLSearchParams({ ...(payerId ? { payer_id: payerId } : {}), ...(statusFilter ? { status_filter: statusFilter } : {}) });
+    return required<PayerSubmissionBatch[]>(`/payer-submission-batches${query.toString() ? `?${query}` : ''}`);
+  },
+  submissionBatch: (batchId: string) => required<PayerSubmissionBatch>(`/payer-submission-batches/${batchId}`),
+  createSubmissionBatch: (value: { payer_id: string; contract_id?: string | null; period_from?: string | null; period_to?: string | null; external_reference?: string | null; notes?: string | null }, idempotencyKey = crypto.randomUUID()) =>
+    required<PayerSubmissionBatch>('/payer-submission-batches', { method: 'POST', headers: { 'Idempotency-Key': idempotencyKey }, json: value }),
+  submissionLines: (batchId: string) => required<PayerSubmissionLine[]>(`/payer-submission-batches/${batchId}/lines`),
+  addSubmissionLine: (batchId: string, receivableId: string) =>
+    required<PayerSubmissionLine>(`/payer-submission-batches/${batchId}/lines`, { method: 'POST', json: { receivable_id: receivableId } }),
+  removeSubmissionLine: (batchId: string, receivableId: string) =>
+    apiRequest(`/payer-submission-batches/${batchId}/lines/${receivableId}`, { method: 'DELETE' }),
+  submitBatch: (batchId: string) => required<PayerSubmissionBatch>(`/payer-submission-batches/${batchId}/submit`, { method: 'POST' }),
+
+  remittances: (payerId?: string) => required<PayerRemittance[]>(`/payer-remittances${payerId ? `?payer_id=${encodeURIComponent(payerId)}` : ''}`),
+  remittanceSummary: (remittanceId: string) => required<PayerRemittanceSummary>(`/payer-remittances/${remittanceId}`),
+  createRemittance: (value: { payer_id: string; contract_id?: string | null; received_date: string; total_amount: string; currency?: Currency; external_reference?: string | null; payment_reference?: string | null; notes?: string | null }, idempotencyKey = crypto.randomUUID()) =>
+    required<PayerRemittance>('/payer-remittances', { method: 'POST', headers: { 'Idempotency-Key': idempotencyKey }, json: value }),
+  remittanceAllocations: (remittanceId: string) => required<PayerRemittanceAllocation[]>(`/payer-remittances/${remittanceId}/allocations`),
+  createAllocation: (remittanceId: string, value: { receivable_id: string; allocated_amount: string }, idempotencyKey = crypto.randomUUID()) =>
+    required<PayerRemittanceAllocation>(`/payer-remittances/${remittanceId}/allocations`, { method: 'POST', headers: { 'Idempotency-Key': idempotencyKey }, json: value }),
+  reverseAllocation: (allocationId: string, reason: string) =>
+    required<PayerRemittanceAllocation>(`/payer-remittance-allocations/${allocationId}/reverse`, { method: 'POST', json: { reason } }),
+
+  campaigns: () => required<Campaign[]>('/campaigns'),
+  createCampaign: (value: { code: string; name: string; valid_from: string; valid_to?: string | null; notes?: string | null }) =>
+    required<Campaign>('/campaigns', { method: 'POST', json: value }),
+  updateCampaign: (campaignId: string, value: { code: string; name: string; valid_from: string; valid_to?: string | null; notes?: string | null; is_active: boolean }) =>
+    required<Campaign>(`/campaigns/${campaignId}`, { method: 'PUT', json: value }),
+  campaignAttributions: (orderId: string) => required<CampaignAttribution[]>(`/orders/${orderId}/campaign-attributions`),
+  createCampaignAttribution: (orderId: string, campaignId: string) =>
+    required<CampaignAttribution>(`/orders/${orderId}/campaign-attributions`, { method: 'POST', json: { campaign_id: campaignId } }),
+  removeCampaignAttribution: (attributionId: string) => apiRequest(`/campaign-attributions/${attributionId}`, { method: 'DELETE' }),
+  campaignSummary: (campaignId: string) => required<CampaignSummary>(`/campaigns/${campaignId}/summary`),
 };

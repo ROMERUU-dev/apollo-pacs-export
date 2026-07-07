@@ -18,6 +18,9 @@ vi.mock('../../api/operations', () => ({
     setEncounterCoverage: vi.fn(),
     payerResolution: vi.fn(),
     overridePayerResolution: vi.fn(),
+    campaigns: vi.fn(),
+    campaignAttributions: vi.fn(),
+    createCampaignAttribution: vi.fn(),
   },
 }));
 
@@ -31,6 +34,8 @@ const mockedPayerContracts = vi.mocked(operationsApi.payerContracts);
 const mockedSetEncounterCoverage = vi.mocked(operationsApi.setEncounterCoverage);
 const mockedPayerResolution = vi.mocked(operationsApi.payerResolution);
 const mockedOverridePayerResolution = vi.mocked(operationsApi.overridePayerResolution);
+const mockedCampaigns = vi.mocked(operationsApi.campaigns);
+const mockedCampaignAttributions = vi.mocked(operationsApi.campaignAttributions);
 
 const BASE_ORDER = {
   id: 'order-1', patient_id: 'p1', accession_number: 'ACC-1', modality: 'US', status: 'scheduled' as const,
@@ -49,6 +54,8 @@ describe('OrderManagementDialog - Financiero (Lote F1)', () => {
     mockedEncounterCoverage.mockResolvedValue(undefined);
     mockedPayers.mockResolvedValue([]);
     mockedPayerResolution.mockResolvedValue(undefined);
+    mockedCampaigns.mockResolvedValue([]);
+    mockedCampaignAttributions.mockResolvedValue([]);
   });
 
   it('muestra precio base y neto de la orden', async () => {
@@ -144,6 +151,8 @@ describe('OrderManagementDialog - Cobertura y resolución de pagador (Lote F2)',
     mockedCharges.mockResolvedValue([CHARGE]);
     mockedPayers.mockResolvedValue([{ id: 'payer-1', code: 'ISSSTESON', name: 'ISSSTESON', is_active: true, created_at: '', updated_at: '' }]);
     mockedPayerContracts.mockResolvedValue([{ id: 'contract-1', payer_id: 'payer-1', name: 'Convenio 2026', valid_from: '2026-01-01', is_active: true, created_at: '', updated_at: '' }]);
+    mockedCampaigns.mockResolvedValue([]);
+    mockedCampaignAttributions.mockResolvedValue([]);
   });
 
   it('muestra particular por defecto y permite asignar cobertura', async () => {

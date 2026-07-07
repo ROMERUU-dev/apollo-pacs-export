@@ -76,6 +76,46 @@ function PayerCoverageSection({ order, onNotice }: { order: Order; onNotice: (me
   </div>;
 }
 
+/** Campaign attribution -- deliberately its own section, never rendered as a payer/coverage
+ * option (Lote F3, docs/decisions/0028 Smoney-separation): attributing a campaign never touches
+ * Charge/PayerReceivable/Payment/CashMovement. */
+function CampaignAttributionSection({ order, onNotice }: { order: Order; onNotice: (message: string) => Promise<void> }) {
+  const [campaigns, setCampaigns] = useState<import('../../api/operations').Campaign[]>();
+  const [attributions, setAttributions] = useState<import('../../api/operations').CampaignAttribution[]>();
+  const [selected, setSelected] = useState('');
+
+  const load = () => Promise.all([
+    operationsApi.campaigns().then(setCampaigns),
+    operationsApi.campaignAttributions(order.id).then(setAttributions),
+  ]);
+  useEffect(() => { void load(); }, [order.id]);
+
+  async function attribute() {
+    if (!selected) return;
+    await operationsApi.createCampaignAttribution(order.id, selected);
+    setSelected('');
+    await load();
+    await onNotice('Procedimiento atribuido a la campaña.');
+  }
+
+  const attributedIds = new Set((attributions ?? []).map((a) => a.campaign_id));
+  const available = (campaigns ?? []).filter((c) => c.is_active && !attributedIds.has(c.id));
+
+  return <div className="payer-coverage-section">
+    <div className="panel-kicker">CAMPAÑA / PROGRAMA (opcional)</div>
+    {attributions && attributions.length > 0 && <div className="charge-row">
+      <span>{campaigns?.find((c) => c.id === attributions[0].campaign_id)?.name ?? 'Campaña'}</span>
+    </div>}
+    {available.length > 0 && <div className="charge-row">
+      <select value={selected} onChange={(event) => setSelected(event.target.value)}>
+        <option value="">Sin campaña</option>
+        {available.map((campaign) => <option key={campaign.id} value={campaign.id}>{campaign.name}</option>)}
+      </select>
+      <button className="row-action" disabled={!selected} onClick={() => void attribute()}>Atribuir</button>
+    </div>}
+  </div>;
+}
+
 function localDateTime(value?: string) {
   if (!value) return '';
   const date = new Date(value); const offset = date.getTimezoneOffset();
@@ -114,6 +154,7 @@ function FinancialTab({ order, onNotice }: { order: Order; onNotice: (message: s
   if (order.financial_resolution_status === 'review_required') {
     return <div className="financial-tab">
       <PayerCoverageSection order={order} onNotice={onNotice} />
+      <CampaignAttributionSection order={order} onNotice={onNotice} />
       <div className="inline-notice warning">Estado financiero: Pendiente de revisión</div>
       <p className="form-note">Este add-on aún no tiene un precio de referencia asignado. No se ha generado ningún cargo ni movimiento de caja.</p>
       <button className="primary-action" onClick={() => setShowResolve(true)}>Resolver</button>
@@ -122,10 +163,11 @@ function FinancialTab({ order, onNotice }: { order: Order; onNotice: (message: s
   }
 
   if (loadError) return <div className="inline-notice error">{loadError}</div>;
-  if (charge === undefined) return <div className="financial-tab"><PayerCoverageSection order={order} onNotice={onNotice} /><div className="dialog-state">Sin información financiera para esta orden.</div></div>;
+  if (charge === undefined) return <div className="financial-tab"><PayerCoverageSection order={order} onNotice={onNotice} /><CampaignAttributionSection order={order} onNotice={onNotice} /><div className="dialog-state">Sin información financiera para esta orden.</div></div>;
 
   return <div className="financial-tab">
     <PayerCoverageSection order={order} onNotice={onNotice} />
+    <CampaignAttributionSection order={order} onNotice={onNotice} />
     <div className="charge-breakdown">
       <div className="charge-row"><span>Precio base</span><b>${charge.base_amount} {charge.currency}</b></div>
       {charge.adjustments.filter((a) => a.is_active).map((adjustment) => <div className="charge-row adjustment-row" key={adjustment.id}>
