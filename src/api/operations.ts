@@ -4,8 +4,20 @@ export type Currency = 'MXN' | 'USD';
 export interface Session { username: string; subject: string; roles: string[] }
 export interface Patient { id: string; mrn: string; first_name: string; last_name: string; second_last_name?: string; middle_name?: string; birth_date: string; sex: string; phone?: string; email?: string }
 export type OrderStatus = 'registered' | 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
-export interface Order { id: string; patient_id: string; accession_number: string; modality: string; status: OrderStatus; priority: 'routine' | 'urgent' | 'stat'; description?: string; scheduled_at?: string; scheduled_duration_minutes?: number; scheduled_station_ae_title?: string; scheduled_station_name?: string; quote_line_id?: string }
+export interface Order { id: string; patient_id: string; accession_number: string; modality: string; status: OrderStatus; priority: 'routine' | 'urgent' | 'stat'; description?: string; scheduled_at?: string; scheduled_duration_minutes?: number; scheduled_station_ae_title?: string; scheduled_station_name?: string; quote_line_id?: string; encounter_id?: string; imaging_service_request_id?: string; procedure_definition_id?: string; financial_resolution_status?: string }
 export interface CatalogItem { id: string; code: string; name: string; modality?: string; description?: string; amount: string; currency: Currency; is_active: boolean }
+export interface ProcedureDefinition { id: string; code: string; name: string; modality: string; notes?: string; is_active: boolean }
+export interface OfferingComponent { id: string; catalog_item_id: string; sequence: number; procedure_definition: ProcedureDefinition }
+export interface CatalogItemDetail extends CatalogItem { components: OfferingComponent[] }
+export type AddOnSource = 'direct_physician' | 'verbal_physician' | 'technician_protocol' | 'technician_complement' | 'reception_addition' | 'external_order' | 'other';
+export interface AddOnProcedureRequest {
+  procedure_definition_id: string;
+  source?: AddOnSource;
+  requested_by_physician?: string | null;
+  reason?: string | null;
+  scheduled_at?: string | null;
+  scheduled_duration_minutes?: number;
+}
 export interface ExchangeRate { id: string; mxn_per_usd: string; effective_at: string; created_by: string; is_active: boolean }
 export interface QuoteLine { id: string; name_snapshot: string; quantity: string; currency: Currency; unit_amount: string; mxn_per_usd?: string; line_total_mxn: string }
 export interface Quote { id: string; patient_id?: string; status: string; total_mxn: string; created_at: string; lines: QuoteLine[] }
@@ -23,6 +35,8 @@ export interface DeliveryOptions { patient_id: string; email_masked?: string; ph
 export interface StudyDelivery { id: string; study_id: string; share_id?: string; patient_id: string; channel: DeliveryChannel; provider: string; destination_masked: string; status: 'pending' | 'provider_accepted' | 'failed'; provider_message_id?: string; error_code?: string; requested_by: string; created_at: string; provider_accepted_at?: string }
 export interface WorklistItem {
   order_id: string;
+  encounter_id?: string;
+  imaging_service_request_id?: string;
   patient: { mrn: string; first_name: string; last_name: string };
   procedure: { accession_number: string; modality: string; status: OrderStatus; priority?: 'routine' | 'urgent' | 'stat'; description?: string; scheduled_at?: string };
 }
@@ -39,17 +53,34 @@ export const operationsApi = {
   createPatient: (value: object) => required<Patient>('/patients', { method: 'POST', json: value }),
   potentialDuplicates: (value: object) => required<Patient[]>('/patients/potential-duplicates', { method: 'POST', json: value }),
   orders: () => required<Order[]>('/orders?limit=100'),
+  ordersByAccession: (accessionNumber: string) => required<Order[]>(`/orders?accession_number=${encodeURIComponent(accessionNumber)}`),
   createOrder: (value: object, idempotencyKey = crypto.randomUUID()) => required<Order>('/orders', { method: 'POST', headers: { 'Idempotency-Key': idempotencyKey }, json: value }),
   updateOrderSchedule: (orderId: string, value: object) => required<Order>(`/orders/${orderId}/schedule`, { method: 'PATCH', json: value }),
   cancelOrder: (orderId: string, reason: string) => required<Order>(`/orders/${orderId}/cancel`, { method: 'POST', json: { reason } }),
+  addOnProcedure: (encounterId: string, value: AddOnProcedureRequest, idempotencyKey = crypto.randomUUID()) =>
+    required<Order>(`/encounters/${encounterId}/add-on-procedures`, { method: 'POST', headers: { 'Idempotency-Key': idempotencyKey }, json: value }),
   updateOrderStatus: (orderId: string, status: OrderStatus) => required<Order>(`/orders/${orderId}/status`, { method: 'PATCH', json: { status } }),
   worklist: () => required<WorklistItem[]>('/worklist'),
   operationalWorklist: (scheduledFrom: string, scheduledTo: string) => {
     const query = new URLSearchParams({ scheduled_from: scheduledFrom, scheduled_to: scheduledTo });
     return required<WorklistItem[]>(`/operational-worklist?${query}`);
   },
-  catalog: () => required<CatalogItem[]>('/catalog-items'),
+  catalog: (isActive?: boolean) => required<CatalogItem[]>(`/catalog-items${isActive === undefined ? '' : `?is_active=${isActive}`}`),
   createCatalog: (value: object) => required<CatalogItem>('/catalog-items', { method: 'POST', json: value }),
+  updateCatalog: (itemId: string, value: object) => required<CatalogItem>(`/catalog-items/${itemId}`, { method: 'PUT', json: value }),
+  catalogDetail: (itemId: string) => required<CatalogItemDetail>(`/catalog-items/${itemId}/detail`),
+  procedureDefinitions: (isActive?: boolean) =>
+    required<ProcedureDefinition[]>(`/procedure-definitions${isActive === undefined ? '' : `?is_active=${isActive}`}`),
+  createProcedureDefinition: (value: { code: string; name: string; modality: string; notes?: string | null }) =>
+    required<ProcedureDefinition>('/procedure-definitions', { method: 'POST', json: value }),
+  updateProcedureDefinition: (definitionId: string, value: { code: string; name: string; modality: string; notes?: string | null; is_active: boolean }) =>
+    required<ProcedureDefinition>(`/procedure-definitions/${definitionId}`, { method: 'PUT', json: value }),
+  addCatalogComponent: (itemId: string, value: { procedure_definition_id: string; sequence: number }) =>
+    required<OfferingComponent>(`/catalog-items/${itemId}/components`, { method: 'POST', json: value }),
+  removeCatalogComponent: (itemId: string, componentId: string) =>
+    apiRequest(`/catalog-items/${itemId}/components/${componentId}`, { method: 'DELETE' }),
+  reorderCatalogComponent: (itemId: string, componentId: string, sequence: number) =>
+    required<OfferingComponent>(`/catalog-items/${itemId}/components/${componentId}`, { method: 'PATCH', json: { sequence } }),
   rates: () => required<ExchangeRate[]>('/exchange-rates'),
   createRate: (value: string) => required<ExchangeRate>('/exchange-rates', { method: 'POST', json: { mxn_per_usd: value } }),
   quotes: () => required<Quote[]>('/quotes'),

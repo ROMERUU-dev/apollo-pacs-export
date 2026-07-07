@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 
 test.beforeEach(async ({ page }) => {
   let worklistStatus = 'scheduled';
+  let addOnCreated = false;
   await page.route('**/api/v1/**', async (route) => {
     const path = new URL(route.request().url()).pathname;
     let body: unknown = [];
@@ -14,10 +15,22 @@ test.beforeEach(async ({ page }) => {
     if (path.endsWith('/studies/study-1/delivery-options')) body = { patient_id: 'p1', email_masked: 'p***@example.com', phone_masked: '•••• 4567', email_configured: false, whatsapp_configured: false, email_consented: false, whatsapp_consented: false, notice_version: '2026-07' };
     if (path.endsWith('/studies/study-1/deliveries')) body = [];
     if (path.endsWith('/portal/redeem')) body = { study_id: 'study-1', patient_name: 'Patricia Prueba', description: 'Tórax AP', viewer_url: '/ohif/viewer?patientPortal=1&StudyInstanceUIDs=1.2.3', expires_at: new Date(Date.now() + 1800000).toISOString() };
-    if (path.endsWith('/catalog-items')) body = [
+    if (path.endsWith('/catalog-items') && route.request().method() === 'GET') body = [
       { id: 'c1', code: 'DEMO-E00', name: 'ANTEBRAZO AP Y LAT', modality: 'DX', amount: '500.00', currency: 'MXN', is_active: true },
       { id: 'c2', code: 'DEMO-E01', name: 'BIOPSIA DE MAMA', modality: 'US', amount: '3500.00', currency: 'MXN', is_active: true },
     ];
+    if (path.endsWith('/catalog-items') && route.request().method() === 'POST') body = {
+      id: 'c3', code: 'OFFERING-NUEVA', name: 'Offering nueva', modality: 'DX', amount: '900.00', currency: 'MXN', is_active: true,
+    };
+    if (path.match(/\/catalog-items\/c\d+$/) && route.request().method() === 'PUT') body = {
+      id: 'c1', code: 'DEMO-E00', name: 'ANTEBRAZO AP Y LAT', modality: 'DX', amount: '650.00', currency: 'MXN', is_active: true,
+    };
+    if (path.endsWith('/catalog-items/c1/detail')) body = {
+      id: 'c1', code: 'DEMO-E00', name: 'ANTEBRAZO AP Y LAT', modality: 'DX', amount: '500.00', currency: 'MXN', is_active: true, components: [],
+    };
+    if (path.endsWith('/catalog-items/c2/detail')) body = {
+      id: 'c2', code: 'DEMO-E01', name: 'BIOPSIA DE MAMA', modality: 'US', amount: '3500.00', currency: 'MXN', is_active: true, components: [],
+    };
     if (path.endsWith('/patients') && route.request().method() === 'GET') body = [{ id: 'p1', mrn: 'AP-P-000001', first_name: 'Patricia', last_name: 'Prueba', second_last_name: 'Apollo', birth_date: '1990-01-01', sex: 'female', phone: '6641234567' }];
     if (path.endsWith('/quotes') && route.request().method() === 'POST') body = { id: 'q1', patient_id: 'p1', status: 'issued', total_mxn: '500.00', created_at: new Date().toISOString(), lines: [] };
     if (path.endsWith('/quotes/q1/schedule')) body = [{ id: 'order-quote-1', patient_id: 'p1', accession_number: 'AP260705000001', modality: 'DX', status: 'scheduled', priority: 'routine', description: 'ANTEBRAZO AP Y LAT', scheduled_at: new Date().toISOString(), scheduled_duration_minutes: 15 }];
@@ -25,14 +38,39 @@ test.beforeEach(async ({ page }) => {
     if (path.endsWith('/orders/order-1/schedule')) body = { id: 'order-1', patient_id: 'p1', accession_number: 'AP260705000002', modality: 'DX', status: 'scheduled', priority: 'routine', description: 'Tórax AP', scheduled_at: new Date().toISOString(), scheduled_duration_minutes: 15 };
     if (path.endsWith('/orders/order-1/cancel')) body = { id: 'order-1', status: 'cancelled', accession_number: 'AP260705000002' };
     if (path.endsWith('/cash/access')) body = route.request().method() === 'POST' ? { unlocked: true, mode: 'development_bypass', expires_at: new Date(Date.now() + 900000).toISOString() } : { unlocked: false, mode: 'locked' };
-    if (path.endsWith('/operational-worklist')) body = [{
-      order_id: 'order-1',
-      patient: { id: 'p1', mrn: 'DEMO-001', first_name: 'Prueba', last_name: 'Paciente', middle_name: null, birth_date: '1990-01-01', sex: 'unknown' },
-      procedure: { accession_number: 'ACC-DEMO', modality: 'DX', status: worklistStatus, priority: 'routine', description: 'Tórax AP', scheduled_at: new Date().toISOString() },
-    }];
+    if (path.endsWith('/operational-worklist')) {
+      body = [{
+        order_id: 'order-1', encounter_id: 'encounter-1', imaging_service_request_id: 'isr-1',
+        patient: { id: 'p1', mrn: 'DEMO-001', first_name: 'Prueba', last_name: 'Paciente', middle_name: null, birth_date: '1990-01-01', sex: 'unknown' },
+        procedure: { accession_number: 'ACC-DEMO', modality: 'DX', status: worklistStatus, priority: 'routine', description: 'Tórax AP', scheduled_at: new Date().toISOString() },
+      }];
+      if (addOnCreated) (body as unknown[]).push({
+        order_id: 'order-2', encounter_id: 'encounter-1', imaging_service_request_id: 'isr-2',
+        patient: { id: 'p1', mrn: 'DEMO-001', first_name: 'Prueba', last_name: 'Paciente', middle_name: null, birth_date: '1990-01-01', sex: 'unknown' },
+        procedure: { accession_number: 'ACC-DEMO-ADDON', modality: 'US', status: 'scheduled', priority: 'routine', description: 'Ultrasonido mamario', scheduled_at: new Date().toISOString() },
+      });
+    }
     if (path.endsWith('/orders/order-1/status') && route.request().method() === 'PATCH') {
       worklistStatus = route.request().postDataJSON().status;
       body = { id: 'order-1', status: worklistStatus };
+    }
+    if (path.endsWith('/procedure-definitions') && route.request().method() === 'GET') body = [
+      { id: 'pd-us-1', code: 'PD-US', name: 'Ultrasonido mamario', modality: 'US', is_active: true },
+      { id: 'pd-mg-1', code: 'PD-MG', name: 'Mastografía bilateral', modality: 'MG', is_active: true },
+      { id: 'pd-dx-1', code: 'PD-DX', name: 'Tórax PA y LAT', modality: 'DX', is_active: true },
+    ];
+    if (path.endsWith('/procedure-definitions') && route.request().method() === 'POST') body = {
+      id: 'pd-new-1', code: 'PD-NEW', name: 'Procedimiento nuevo', modality: 'DX', is_active: true,
+    };
+    if (path.match(/\/procedure-definitions\/pd-[\w-]+$/) && route.request().method() === 'PUT') body = {
+      id: 'pd-us-1', code: 'PD-US', name: 'Ultrasonido mamario editado', modality: 'US', is_active: true,
+    };
+    if (path.includes('/add-on-procedures') && route.request().method() === 'POST') {
+      addOnCreated = true;
+      body = {
+        id: 'order-2', patient_id: 'p1', accession_number: 'ACC-DEMO-ADDON', modality: 'US',
+        status: 'scheduled', priority: 'routine', encounter_id: 'encounter-1', imaging_service_request_id: 'isr-2',
+      };
     }
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
   });
@@ -114,4 +152,81 @@ test('el portal canjea y elimina el token de la barra de direcciones', async ({ 
   await page.goto('/portal?token=opaque-test-token');
   await expect(page).toHaveURL(/\/portal$/);
   await expect(page.getByRole('heading', { name: 'Patricia Prueba' })).toBeVisible();
+});
+
+test('Lote C4/C5: el técnico agrega un estudio por indicación verbal del médico y aparece en Worklist', async ({ page }) => {
+  await page.goto('/tecnico');
+  await expect(page.getByText('1 estudios programados o activos')).toBeVisible();
+
+  await page.getByRole('button', { name: '＋ Agregar estudio' }).click();
+
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByRole('heading', { name: 'Paciente, Prueba' })).toBeVisible();
+  // Grid muestra más de dos estudios reales, no solo los dos históricos.
+  await expect(dialog.getByText('Mastografía bilateral')).toBeVisible();
+  await expect(dialog.getByText('Tórax PA y LAT')).toBeVisible();
+
+  await dialog.getByPlaceholder(/ultrasonido mamario/i).fill('ultrasonido');
+  await dialog.getByText('Ultrasonido mamario').click();
+
+  // El único campo obligatorio es la selección: se agrega sin expandir Detalles opcionales.
+  await dialog.getByRole('button', { name: 'Agregar estudio', exact: true }).click();
+
+  await expect(page.getByText('2 estudios programados o activos')).toBeVisible();
+  await expect(page.getByText('ACC-DEMO-ADDON')).toBeVisible();
+});
+
+test('Lote C5: el técnico puede registrar el médico solicitante expandiendo Detalles opcionales', async ({ page }) => {
+  await page.goto('/tecnico');
+  await page.getByRole('button', { name: '＋ Agregar estudio' }).click();
+
+  const dialog = page.getByRole('dialog');
+  await dialog.getByRole('button', { name: 'MG', exact: true }).click();
+  await dialog.getByText('Mastografía bilateral').click();
+
+  await expect(dialog.getByPlaceholder(/Dra\. Gómez/i)).not.toBeVisible();
+  await dialog.getByRole('button', { name: /Detalles opcionales/ }).click();
+  await dialog.getByPlaceholder(/Dra\. Gómez/i).fill('Dra. Gómez');
+  await dialog.getByRole('button', { name: 'Agregar estudio', exact: true }).click();
+
+  await expect(page.getByText('2 estudios programados o activos')).toBeVisible();
+});
+
+test('Lote C5: en Médico, colapsar ambos paneles expande el visor y el reporte conserva su contenido', async ({ page }) => {
+  await page.goto('/medico');
+  await expect(page.getByRole('heading', { name: 'Lectura del radiólogo' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Pendientes', exact: true })).toBeVisible();
+  await expect(page.getByText('REPORTE')).toBeVisible();
+
+  const reportTextarea = page.locator('.report-panel textarea');
+  await reportTextarea.fill('HALLAZGOS: hallazgo de prueba para persistencia');
+
+  await page.getByLabel('Colapsar lista de pacientes').click();
+  await expect(page.getByRole('heading', { name: 'Pendientes', exact: true })).not.toBeVisible();
+
+  await page.getByLabel('Colapsar reporte').click();
+  await expect(page.getByText('REPORTE')).not.toBeVisible();
+  await expect(page.getByText('Visor DICOM conectado mediante OHIF')).toBeVisible();
+
+  await page.getByLabel('Expandir reporte').click();
+  await expect(page.getByText('REPORTE')).toBeVisible();
+  await expect(page.locator('.report-panel textarea')).toHaveValue('HALLAZGOS: hallazgo de prueba para persistencia');
+});
+
+test('Lote C5: Configuración > Catálogo clínico permite ver Offerings, procedimientos y editar precio', async ({ page }) => {
+  await page.goto('/configuracion/catalogo');
+  await expect(page.getByRole('heading', { name: 'Catálogo clínico' })).toBeVisible();
+  await expect(page.getByText('ANTEBRAZO AP Y LAT')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Procedimientos' }).click();
+  await expect(page.getByText('Ultrasonido mamario')).toBeVisible();
+  await expect(page.getByText('Mastografía bilateral')).toBeVisible();
+  await expect(page.getByText('Tórax PA y LAT')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Precios' }).click();
+  const priceRow = page.locator('.price-row').filter({ hasText: 'ANTEBRAZO AP Y LAT' });
+  await priceRow.getByRole('button', { name: 'Editar precio' }).click();
+  await priceRow.locator('input[type="number"]').fill('650.00');
+  await priceRow.getByRole('button', { name: 'Guardar' }).click();
+  await expect(page.getByText(/Precio de "ANTEBRAZO AP Y LAT" actualizado/)).toBeVisible();
 });
