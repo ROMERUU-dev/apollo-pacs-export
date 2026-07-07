@@ -3,6 +3,8 @@ import { expect, test } from '@playwright/test';
 test.beforeEach(async ({ page }) => {
   let worklistStatus = 'scheduled';
   let addOnCreated = false;
+  let orderOneCharge = { id: 'charge-1', encounter_id: 'encounter-1', imaging_service_request_id: 'isr-1', code_snapshot: 'DEMO-E15', name_snapshot: 'US Abdomen', base_amount: '1200.00', currency: 'MXN', created_by: 'apollo-receptionist', created_at: new Date().toISOString(), adjustments: [] as unknown[], net_amount: '1200.00' };
+  let pendingOrderResolved = false;
   await page.route('**/api/v1/**', async (route) => {
     const path = new URL(route.request().url()).pathname;
     let body: unknown = [];
@@ -34,9 +36,38 @@ test.beforeEach(async ({ page }) => {
     if (path.endsWith('/patients') && route.request().method() === 'GET') body = [{ id: 'p1', mrn: 'AP-P-000001', first_name: 'Patricia', last_name: 'Prueba', second_last_name: 'Apollo', birth_date: '1990-01-01', sex: 'female', phone: '6641234567' }];
     if (path.endsWith('/quotes') && route.request().method() === 'POST') body = { id: 'q1', patient_id: 'p1', status: 'issued', total_mxn: '500.00', created_at: new Date().toISOString(), lines: [] };
     if (path.endsWith('/quotes/q1/schedule')) body = [{ id: 'order-quote-1', patient_id: 'p1', accession_number: 'AP260705000001', modality: 'DX', status: 'scheduled', priority: 'routine', description: 'ANTEBRAZO AP Y LAT', scheduled_at: new Date().toISOString(), scheduled_duration_minutes: 15 }];
-    if (path.endsWith('/orders') && route.request().method() === 'GET') body = [{ id: 'order-1', patient_id: 'p1', accession_number: 'AP260705000002', modality: 'DX', status: 'scheduled', priority: 'routine', description: 'Tórax AP', scheduled_at: new Date().toISOString(), scheduled_duration_minutes: 15 }];
+    if (path.endsWith('/orders') && route.request().method() === 'GET') body = [{
+      id: 'order-1', patient_id: 'p1', accession_number: 'AP260705000002', modality: 'DX', status: 'scheduled', priority: 'routine',
+      description: 'Tórax AP', scheduled_at: new Date().toISOString(), scheduled_duration_minutes: 15,
+      encounter_id: 'encounter-1', imaging_service_request_id: 'isr-1',
+    }, {
+      id: 'order-pending', patient_id: 'p1', accession_number: 'AP260705000009', modality: 'US', status: 'scheduled', priority: 'routine',
+      description: 'US mamario (add-on)', scheduled_at: new Date().toISOString(), scheduled_duration_minutes: 15,
+      encounter_id: 'encounter-2', imaging_service_request_id: 'isr-2',
+      financial_resolution_status: pendingOrderResolved ? 'resolved' : 'review_required',
+    }];
     if (path.endsWith('/orders/order-1/schedule')) body = { id: 'order-1', patient_id: 'p1', accession_number: 'AP260705000002', modality: 'DX', status: 'scheduled', priority: 'routine', description: 'Tórax AP', scheduled_at: new Date().toISOString(), scheduled_duration_minutes: 15 };
     if (path.endsWith('/orders/order-1/cancel')) body = { id: 'order-1', status: 'cancelled', accession_number: 'AP260705000002' };
+    if (path.endsWith('/charges') && route.request().method() === 'GET') {
+      const encounterId = new URL(route.request().url()).searchParams.get('encounter_id');
+      body = encounterId === 'encounter-1' ? [orderOneCharge] : [];
+    }
+    if (path.endsWith('/charges/charge-1/adjustments') && route.request().method() === 'POST') {
+      const payload = route.request().postDataJSON();
+      const amount = payload.type === 'percentage_discount' ? String((1200 * Number(payload.percentage) / 100).toFixed(2))
+        : payload.type === 'courtesy' ? orderOneCharge.net_amount : payload.amount;
+      const adjustment = { id: 'adj-1', charge_id: 'charge-1', type: payload.type, amount, percentage: payload.percentage, reason: payload.reason, created_by: 'apollo-receptionist', created_at: new Date().toISOString(), is_active: true };
+      orderOneCharge = { ...orderOneCharge, adjustments: [adjustment], net_amount: String((Number(orderOneCharge.net_amount) - Number(amount)).toFixed(2)) };
+      body = adjustment;
+    }
+    if (path.endsWith('/resolve-financial-review') && route.request().method() === 'POST') {
+      pendingOrderResolved = true;
+      body = {
+        id: 'charge-pending', encounter_id: 'encounter-2', imaging_service_request_id: 'isr-2',
+        code_snapshot: 'OFFERING-US-PENDING', name_snapshot: 'US Mamario', base_amount: '800.00', currency: 'MXN',
+        created_by: 'apollo-receptionist', created_at: new Date().toISOString(), adjustments: [], net_amount: '800.00',
+      };
+    }
     if (path.endsWith('/cash/access')) body = route.request().method() === 'POST' ? { unlocked: true, mode: 'development_bypass', expires_at: new Date(Date.now() + 900000).toISOString() } : { unlocked: false, mode: 'locked' };
     if (path.endsWith('/operational-worklist')) {
       body = [{
@@ -122,7 +153,7 @@ test('crear cotización permite buscar y asociar un paciente existente', async (
 test('Órdenes permite reprogramar y retirar una cita de Worklist con motivo', async ({ page }) => {
   await page.goto('/recepcion');
   await page.getByRole('button', { name: 'Órdenes' }).click();
-  await page.getByRole('button', { name: 'Gestionar' }).click();
+  await page.locator('.dense-row.order-row').filter({ hasText: 'AP260705000002' }).getByRole('button', { name: 'Gestionar' }).click();
   await expect(page.getByText('Accession AP260705000002')).toBeVisible();
   await page.getByRole('button', { name: 'Cancelar / retirar WL' }).click();
   await page.getByPlaceholder(/El paciente se retiró/).fill('El paciente se retiró');
@@ -229,4 +260,72 @@ test('Lote C5: Configuración > Catálogo clínico permite ver Offerings, proced
   await priceRow.locator('input[type="number"]').fill('650.00');
   await priceRow.getByRole('button', { name: 'Guardar' }).click();
   await expect(page.getByText(/Precio de "ANTEBRAZO AP Y LAT" actualizado/)).toBeVisible();
+});
+
+test('Lote F1 Caso A: Recepción aplica un descuento del 20% sin generar CashMovement', async ({ page }) => {
+  const cashCalls: string[] = [];
+  page.on('request', (request) => {
+    if (request.method() === 'POST' && (request.url().includes('/cash/movements') || request.url().includes('/cash/payments'))) cashCalls.push(request.url());
+  });
+
+  await page.goto('/recepcion');
+  await page.getByRole('button', { name: 'Órdenes' }).click();
+  await page.locator('.dense-row.order-row').filter({ hasText: 'AP260705000002' }).getByRole('button', { name: 'Gestionar' }).click();
+  await page.getByRole('button', { name: 'Financiero' }).click();
+
+  await expect(page.getByText('Total')).toBeVisible();
+  await expect(page.getByText('$1200.00 MXN').first()).toBeVisible();
+
+  await page.getByRole('button', { name: '+ Aplicar ajuste' }).click();
+  const dialog = page.getByRole('dialog').last();
+  await dialog.getByLabel('Porcentaje').fill('20');
+  await dialog.getByRole('button', { name: 'Aplicar ajuste' }).click();
+
+  await expect(page.getByText('$960.00 MXN')).toBeVisible();
+  expect(cashCalls).toHaveLength(0);
+});
+
+test('Lote F1 Caso B: cortesía preserva el precio de referencia y deja el total en $0', async ({ page }) => {
+  const cashCalls: string[] = [];
+  page.on('request', (request) => {
+    if (request.method() === 'POST' && (request.url().includes('/cash/movements') || request.url().includes('/cash/payments'))) cashCalls.push(request.url());
+  });
+
+  await page.goto('/recepcion');
+  await page.getByRole('button', { name: 'Órdenes' }).click();
+  await page.locator('.dense-row.order-row').filter({ hasText: 'AP260705000002' }).getByRole('button', { name: 'Gestionar' }).click();
+  await page.getByRole('button', { name: 'Financiero' }).click();
+  await page.getByRole('button', { name: '+ Aplicar ajuste' }).click();
+
+  const dialog = page.getByRole('dialog').last();
+  await dialog.getByLabel('Tipo de ajuste').selectOption('courtesy');
+  await dialog.getByRole('button', { name: 'Aplicar ajuste' }).click();
+
+  await expect(page.locator('.charge-row').filter({ hasText: 'Precio base' }).getByText('$1200.00 MXN')).toBeVisible(); // base amount preserved as reference
+  await expect(page.locator('.charge-total').getByText('$0.00 MXN')).toBeVisible(); // net
+  expect(cashCalls).toHaveLength(0);
+});
+
+test('Lote F1 Caso D: Recepción resuelve un add-on pendiente de revisión sin opciones de asegurador', async ({ page }) => {
+  const cashCalls: string[] = [];
+  page.on('request', (request) => {
+    if (request.method() === 'POST' && (request.url().includes('/cash/movements') || request.url().includes('/cash/payments'))) cashCalls.push(request.url());
+  });
+
+  await page.goto('/recepcion');
+  await page.getByRole('button', { name: 'Órdenes' }).click();
+  await page.locator('.dense-row.order-row').filter({ hasText: 'AP260705000009' }).getByRole('button', { name: 'Gestionar' }).click();
+  await page.getByRole('button', { name: 'Financiero' }).click();
+
+  await expect(page.getByText('Estado financiero: Pendiente de revisión')).toBeVisible();
+  await page.getByRole('button', { name: 'Resolver' }).click();
+
+  const dialog = page.getByRole('dialog').last();
+  await expect(dialog.getByText(/asegurador/i)).toHaveCount(0);
+  await dialog.getByPlaceholder('Buscar Offering…').fill('biopsia');
+  await dialog.getByText('BIOPSIA DE MAMA').click();
+  await dialog.getByRole('button', { name: 'Resolver', exact: true }).click();
+
+  await expect(page.getByText(/resuelta/i)).toBeVisible();
+  expect(cashCalls).toHaveLength(0);
 });

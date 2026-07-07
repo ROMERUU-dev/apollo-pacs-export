@@ -18,6 +18,26 @@ export interface AddOnProcedureRequest {
   scheduled_at?: string | null;
   scheduled_duration_minutes?: number;
 }
+export type AdjustmentType = 'percentage_discount' | 'fixed_discount' | 'courtesy' | 'social_support';
+export interface AdjustmentCreateRequest {
+  type: AdjustmentType;
+  amount?: string | null;
+  percentage?: string | null;
+  reason?: string | null;
+}
+export interface Adjustment {
+  id: string; charge_id: string; type: AdjustmentType; amount: string; percentage?: string; reason?: string;
+  created_by: string; created_at: string; reversed_at?: string; reversed_by?: string; reversal_reason?: string; is_active: boolean;
+}
+export interface Charge {
+  id: string; encounter_id: string; imaging_service_request_id: string; quote_line_id?: string; catalog_item_id?: string;
+  code_snapshot: string; name_snapshot: string; base_amount: string; currency: Currency;
+  created_by: string; created_at: string; adjustments: Adjustment[]; net_amount: string;
+}
+export interface FinancialReviewResolveRequest {
+  catalog_item_id: string;
+  adjustment?: AdjustmentCreateRequest | null;
+}
 export interface ExchangeRate { id: string; mxn_per_usd: string; effective_at: string; created_by: string; is_active: boolean }
 export interface QuoteLine { id: string; name_snapshot: string; quantity: string; currency: Currency; unit_amount: string; mxn_per_usd?: string; line_total_mxn: string }
 export interface Quote { id: string; patient_id?: string; status: string; total_mxn: string; created_at: string; lines: QuoteLine[] }
@@ -81,6 +101,14 @@ export const operationsApi = {
     apiRequest(`/catalog-items/${itemId}/components/${componentId}`, { method: 'DELETE' }),
   reorderCatalogComponent: (itemId: string, componentId: string, sequence: number) =>
     required<OfferingComponent>(`/catalog-items/${itemId}/components/${componentId}`, { method: 'PATCH', json: { sequence } }),
+  charges: (encounterId?: string) => required<Charge[]>(`/charges${encounterId ? `?encounter_id=${encodeURIComponent(encounterId)}` : ''}`),
+  charge: (chargeId: string) => required<Charge>(`/charges/${chargeId}`),
+  createAdjustment: (chargeId: string, value: AdjustmentCreateRequest, idempotencyKey = crypto.randomUUID()) =>
+    required<Adjustment>(`/charges/${chargeId}/adjustments`, { method: 'POST', headers: { 'Idempotency-Key': idempotencyKey }, json: value }),
+  reverseAdjustment: (adjustmentId: string, reason: string) =>
+    required<Adjustment>(`/adjustments/${adjustmentId}/reverse`, { method: 'POST', json: { reason } }),
+  resolveFinancialReview: (orderId: string, value: FinancialReviewResolveRequest, idempotencyKey = crypto.randomUUID()) =>
+    required<Charge>(`/orders/${orderId}/resolve-financial-review`, { method: 'POST', headers: { 'Idempotency-Key': idempotencyKey }, json: value }),
   rates: () => required<ExchangeRate[]>('/exchange-rates'),
   createRate: (value: string) => required<ExchangeRate>('/exchange-rates', { method: 'POST', json: { mxn_per_usd: value } }),
   quotes: () => required<Quote[]>('/quotes'),
