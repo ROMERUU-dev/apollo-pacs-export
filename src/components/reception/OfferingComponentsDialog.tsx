@@ -66,6 +66,22 @@ export function OfferingComponentsDialog({ item, onClose, onSaved }: {
     } finally { setBusy(false); }
   }
 
+  async function move(component: OfferingComponent, direction: -1 | 1) {
+    const ordered = components ?? [];
+    const index = ordered.findIndex((candidate) => candidate.id === component.id);
+    const neighbor = ordered[index + direction];
+    if (!neighbor) return;
+    setBusy(true); setError('');
+    try {
+      await operationsApi.reorderCatalogComponent(item.id, component.id, neighbor.sequence);
+      await operationsApi.reorderCatalogComponent(item.id, neighbor.id, component.sequence);
+      await load();
+      await onSaved('Orden de componentes actualizado.');
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'No fue posible reordenar los componentes.');
+    } finally { setBusy(false); }
+  }
+
   const availableDefinitions = definitions.filter((definition) => !attached.has(definition.id));
 
   return <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
@@ -83,7 +99,11 @@ export function OfferingComponentsDialog({ item, onClose, onSaved }: {
         {components?.map((component, index) => <div className="component-row" key={component.id}>
           <span className="modality-chip">{component.procedure_definition.modality}</span>
           <span><b>{component.procedure_definition.name}</b><small>Secuencia {index + 1} · {component.procedure_definition.code}</small></span>
-          <button className="row-action" disabled={busy} onClick={() => void remove(component)}>Quitar</button>
+          <span className="component-row-actions">
+            <button className="row-action" disabled={busy || index === 0} aria-label="Subir" onClick={() => void move(component, -1)}>↑</button>
+            <button className="row-action" disabled={busy || index === (components?.length ?? 0) - 1} aria-label="Bajar" onClick={() => void move(component, 1)}>↓</button>
+            <button className="row-action" disabled={busy} onClick={() => void remove(component)}>Quitar</button>
+          </span>
         </div>)}
       </div>
 

@@ -6,13 +6,13 @@ export interface Patient { id: string; mrn: string; first_name: string; last_nam
 export type OrderStatus = 'registered' | 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
 export interface Order { id: string; patient_id: string; accession_number: string; modality: string; status: OrderStatus; priority: 'routine' | 'urgent' | 'stat'; description?: string; scheduled_at?: string; scheduled_duration_minutes?: number; scheduled_station_ae_title?: string; scheduled_station_name?: string; quote_line_id?: string; encounter_id?: string; imaging_service_request_id?: string; procedure_definition_id?: string; financial_resolution_status?: string }
 export interface CatalogItem { id: string; code: string; name: string; modality?: string; description?: string; amount: string; currency: Currency; is_active: boolean }
-export interface ProcedureDefinition { id: string; code: string; name: string; modality: string; is_active: boolean }
+export interface ProcedureDefinition { id: string; code: string; name: string; modality: string; notes?: string; is_active: boolean }
 export interface OfferingComponent { id: string; catalog_item_id: string; sequence: number; procedure_definition: ProcedureDefinition }
 export interface CatalogItemDetail extends CatalogItem { components: OfferingComponent[] }
 export type AddOnSource = 'direct_physician' | 'verbal_physician' | 'technician_protocol' | 'technician_complement' | 'reception_addition' | 'external_order' | 'other';
 export interface AddOnProcedureRequest {
   procedure_definition_id: string;
-  source: AddOnSource;
+  source?: AddOnSource;
   requested_by_physician?: string | null;
   reason?: string | null;
   scheduled_at?: string | null;
@@ -65,16 +65,22 @@ export const operationsApi = {
     const query = new URLSearchParams({ scheduled_from: scheduledFrom, scheduled_to: scheduledTo });
     return required<WorklistItem[]>(`/operational-worklist?${query}`);
   },
-  catalog: () => required<CatalogItem[]>('/catalog-items'),
+  catalog: (isActive?: boolean) => required<CatalogItem[]>(`/catalog-items${isActive === undefined ? '' : `?is_active=${isActive}`}`),
   createCatalog: (value: object) => required<CatalogItem>('/catalog-items', { method: 'POST', json: value }),
+  updateCatalog: (itemId: string, value: object) => required<CatalogItem>(`/catalog-items/${itemId}`, { method: 'PUT', json: value }),
   catalogDetail: (itemId: string) => required<CatalogItemDetail>(`/catalog-items/${itemId}/detail`),
-  procedureDefinitions: () => required<ProcedureDefinition[]>('/procedure-definitions'),
-  createProcedureDefinition: (value: { code: string; name: string; modality: string }) =>
+  procedureDefinitions: (isActive?: boolean) =>
+    required<ProcedureDefinition[]>(`/procedure-definitions${isActive === undefined ? '' : `?is_active=${isActive}`}`),
+  createProcedureDefinition: (value: { code: string; name: string; modality: string; notes?: string | null }) =>
     required<ProcedureDefinition>('/procedure-definitions', { method: 'POST', json: value }),
+  updateProcedureDefinition: (definitionId: string, value: { code: string; name: string; modality: string; notes?: string | null; is_active: boolean }) =>
+    required<ProcedureDefinition>(`/procedure-definitions/${definitionId}`, { method: 'PUT', json: value }),
   addCatalogComponent: (itemId: string, value: { procedure_definition_id: string; sequence: number }) =>
     required<OfferingComponent>(`/catalog-items/${itemId}/components`, { method: 'POST', json: value }),
   removeCatalogComponent: (itemId: string, componentId: string) =>
     apiRequest(`/catalog-items/${itemId}/components/${componentId}`, { method: 'DELETE' }),
+  reorderCatalogComponent: (itemId: string, componentId: string, sequence: number) =>
+    required<OfferingComponent>(`/catalog-items/${itemId}/components/${componentId}`, { method: 'PATCH', json: { sequence } }),
   rates: () => required<ExchangeRate[]>('/exchange-rates'),
   createRate: (value: string) => required<ExchangeRate>('/exchange-rates', { method: 'POST', json: { mxn_per_usd: value } }),
   quotes: () => required<Quote[]>('/quotes'),
