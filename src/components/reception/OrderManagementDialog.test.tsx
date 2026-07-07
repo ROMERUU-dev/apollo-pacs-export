@@ -12,6 +12,12 @@ vi.mock('../../api/operations', () => ({
     reverseAdjustment: vi.fn(),
     resolveFinancialReview: vi.fn(),
     catalog: vi.fn(),
+    encounterCoverage: vi.fn(),
+    payers: vi.fn(),
+    payerContracts: vi.fn(),
+    setEncounterCoverage: vi.fn(),
+    payerResolution: vi.fn(),
+    overridePayerResolution: vi.fn(),
   },
 }));
 
@@ -19,6 +25,12 @@ const mockedCharges = vi.mocked(operationsApi.charges);
 const mockedCreateAdjustment = vi.mocked(operationsApi.createAdjustment);
 const mockedResolveFinancialReview = vi.mocked(operationsApi.resolveFinancialReview);
 const mockedCatalog = vi.mocked(operationsApi.catalog);
+const mockedEncounterCoverage = vi.mocked(operationsApi.encounterCoverage);
+const mockedPayers = vi.mocked(operationsApi.payers);
+const mockedPayerContracts = vi.mocked(operationsApi.payerContracts);
+const mockedSetEncounterCoverage = vi.mocked(operationsApi.setEncounterCoverage);
+const mockedPayerResolution = vi.mocked(operationsApi.payerResolution);
+const mockedOverridePayerResolution = vi.mocked(operationsApi.overridePayerResolution);
 
 const BASE_ORDER = {
   id: 'order-1', patient_id: 'p1', accession_number: 'ACC-1', modality: 'US', status: 'scheduled' as const,
@@ -34,6 +46,9 @@ const CHARGE = {
 describe('OrderManagementDialog - Financiero (Lote F1)', () => {
   beforeEach(() => {
     mockedCharges.mockResolvedValue([CHARGE]);
+    mockedEncounterCoverage.mockResolvedValue(undefined);
+    mockedPayers.mockResolvedValue([]);
+    mockedPayerResolution.mockResolvedValue(undefined);
   });
 
   it('muestra precio base y neto de la orden', async () => {
@@ -119,5 +134,89 @@ describe('OrderManagementDialog - Financiero (Lote F1)', () => {
     fireEvent.click(dialog.getByRole('button', { name: 'Resolver' }));
 
     await waitFor(() => expect(mockedResolveFinancialReview).toHaveBeenCalledWith('order-1', { catalog_item_id: 'offering-1', adjustment: undefined }));
+  });
+});
+
+describe('OrderManagementDialog - Cobertura y resolución de pagador (Lote F2)', () => {
+  const ORDER_WITH_PROCEDURE = { ...BASE_ORDER, procedure_definition_id: 'pd-us-1' };
+
+  beforeEach(() => {
+    mockedCharges.mockResolvedValue([CHARGE]);
+    mockedPayers.mockResolvedValue([{ id: 'payer-1', code: 'ISSSTESON', name: 'ISSSTESON', is_active: true, created_at: '', updated_at: '' }]);
+    mockedPayerContracts.mockResolvedValue([{ id: 'contract-1', payer_id: 'payer-1', name: 'Convenio 2026', valid_from: '2026-01-01', is_active: true, created_at: '', updated_at: '' }]);
+  });
+
+  it('muestra particular por defecto y permite asignar cobertura', async () => {
+    mockedEncounterCoverage.mockResolvedValue(undefined);
+    mockedPayerResolution.mockResolvedValue(undefined);
+    mockedSetEncounterCoverage.mockResolvedValue({
+      id: 'coverage-1', encounter_id: 'encounter-1', payer_id: 'payer-1', contract_id: 'contract-1',
+      is_primary: true, is_active: true, created_by: 'test', created_at: '',
+    });
+
+    render(<OrderManagementDialog order={BASE_ORDER} onClose={vi.fn()} onSaved={vi.fn().mockResolvedValue(undefined)} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Financiero' }));
+    expect(await screen.findByText('Particular')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Asignar cobertura' }));
+    const dialog = within(screen.getAllByRole('dialog')[1]);
+    await dialog.findByText('ISSSTESON'); // wait for the payer <option> to actually load before selecting it
+    fireEvent.change(dialog.getByLabelText('Cobertura'), { target: { value: 'payer-1' } });
+    await dialog.findByLabelText('Convenio');
+    fireEvent.click(dialog.getByRole('button', { name: 'Asignar cobertura' }));
+
+    await waitFor(() => expect(mockedSetEncounterCoverage).toHaveBeenCalledWith('encounter-1', { payer_id: 'payer-1', contract_id: null }));
+  });
+
+  it('muestra elegible con tarifa de convenio', async () => {
+    mockedEncounterCoverage.mockResolvedValue({
+      id: 'coverage-1', encounter_id: 'encounter-1', payer_id: 'payer-1', contract_id: 'contract-1',
+      is_primary: true, is_active: true, created_by: 'test', created_at: '',
+    });
+    mockedPayerResolution.mockResolvedValue({
+      id: 'res-1', order_id: 'order-1', payer_id: 'payer-1', contract_id: 'contract-1', procedure_definition_id: 'pd-us-1',
+      eligibility_status: 'eligible', tariff_amount: '750.00', currency: 'MXN', requires_authorization: false,
+      resolution_source: 'contract_tariff', resolved_by: 'test', resolved_at: '',
+    });
+
+    render(<OrderManagementDialog order={ORDER_WITH_PROCEDURE} onClose={vi.fn()} onSaved={vi.fn().mockResolvedValue(undefined)} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Financiero' }));
+
+    expect(await screen.findByText('✓ Elegible')).toBeInTheDocument();
+    expect(screen.getByText('Tarifa convenio: $750.00 MXN')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Autorizar excepción' })).not.toBeInTheDocument();
+  });
+
+  it('muestra no elegible y permite autorizar una excepción', async () => {
+    mockedEncounterCoverage.mockResolvedValue({
+      id: 'coverage-1', encounter_id: 'encounter-1', payer_id: 'payer-1', contract_id: 'contract-1',
+      is_primary: true, is_active: true, created_by: 'test', created_at: '',
+    });
+    mockedPayerResolution.mockResolvedValue({
+      id: 'res-1', order_id: 'order-1', payer_id: 'payer-1', contract_id: 'contract-1', procedure_definition_id: 'pd-us-1',
+      eligibility_status: 'ineligible', requires_authorization: false,
+      resolution_source: 'contract_tariff', resolved_by: 'test', resolved_at: '',
+    });
+    mockedOverridePayerResolution.mockResolvedValue({
+      id: 'res-1', order_id: 'order-1', payer_id: 'payer-1', contract_id: 'contract-1', procedure_definition_id: 'pd-us-1',
+      eligibility_status: 'eligible', tariff_amount: '700.00', currency: 'MXN', requires_authorization: true,
+      authorization_reference: 'FOLIO-1', resolution_source: 'authorized_override', resolved_by: 'test', resolved_at: '',
+    });
+
+    render(<OrderManagementDialog order={ORDER_WITH_PROCEDURE} onClose={vi.fn()} onSaved={vi.fn().mockResolvedValue(undefined)} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Financiero' }));
+
+    expect(await screen.findByText('✕ No elegible')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Autorizar excepción' }));
+
+    const dialog = within(screen.getAllByRole('dialog')[1]);
+    fireEvent.change(dialog.getByPlaceholderText(/700\.00/), { target: { value: '700' } });
+    fireEvent.change(dialog.getByPlaceholderText(/FOLIO-123/), { target: { value: 'FOLIO-1' } });
+    fireEvent.change(dialog.getByPlaceholderText(/vía telefónica/), { target: { value: 'Autorizado por dependencia.' } });
+    fireEvent.click(dialog.getByRole('button', { name: 'Registrar excepción' }));
+
+    await waitFor(() => expect(mockedOverridePayerResolution).toHaveBeenCalledWith('order-1', {
+      amount: '700', authorization_reference: 'FOLIO-1', reason: 'Autorizado por dependencia.',
+    }));
   });
 });

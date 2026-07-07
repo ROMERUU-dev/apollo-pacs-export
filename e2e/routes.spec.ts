@@ -5,6 +5,8 @@ test.beforeEach(async ({ page }) => {
   let addOnCreated = false;
   let orderOneCharge = { id: 'charge-1', encounter_id: 'encounter-1', imaging_service_request_id: 'isr-1', code_snapshot: 'DEMO-E15', name_snapshot: 'US Abdomen', base_amount: '1200.00', currency: 'MXN', created_by: 'apollo-receptionist', created_at: new Date().toISOString(), adjustments: [] as unknown[], net_amount: '1200.00' };
   let pendingOrderResolved = false;
+  let encounterOneCoverage: Record<string, unknown> | null = null;
+  let orderOneResolution: Record<string, unknown> | null = null;
   await page.route('**/api/v1/**', async (route) => {
     const path = new URL(route.request().url()).pathname;
     let body: unknown = [];
@@ -39,7 +41,7 @@ test.beforeEach(async ({ page }) => {
     if (path.endsWith('/orders') && route.request().method() === 'GET') body = [{
       id: 'order-1', patient_id: 'p1', accession_number: 'AP260705000002', modality: 'DX', status: 'scheduled', priority: 'routine',
       description: 'Tórax AP', scheduled_at: new Date().toISOString(), scheduled_duration_minutes: 15,
-      encounter_id: 'encounter-1', imaging_service_request_id: 'isr-1',
+      encounter_id: 'encounter-1', imaging_service_request_id: 'isr-1', procedure_definition_id: 'pd-us-1',
     }, {
       id: 'order-pending', patient_id: 'p1', accession_number: 'AP260705000009', modality: 'US', status: 'scheduled', priority: 'routine',
       description: 'US mamario (add-on)', scheduled_at: new Date().toISOString(), scheduled_duration_minutes: 15,
@@ -67,6 +69,38 @@ test.beforeEach(async ({ page }) => {
         code_snapshot: 'OFFERING-US-PENDING', name_snapshot: 'US Mamario', base_amount: '800.00', currency: 'MXN',
         created_by: 'apollo-receptionist', created_at: new Date().toISOString(), adjustments: [], net_amount: '800.00',
       };
+    }
+    if (path.endsWith('/payers') && route.request().method() === 'GET') body = [
+      { id: 'payer-1', code: 'ISSSTESON', name: 'ISSSTESON', is_active: true, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+    ];
+    if (path.endsWith('/payers/payer-1/contracts')) body = [
+      { id: 'contract-1', payer_id: 'payer-1', name: 'Convenio 2026', valid_from: '2026-01-01', is_active: true, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+    ];
+    if (path.endsWith('/procedure-definitions/pd-us-1/payer-tariffs')) body = [
+      { payer_id: 'payer-1', payer_code: 'ISSSTESON', payer_name: 'ISSSTESON', contract_id: 'contract-1', contract_name: 'Convenio 2026', tariff: null },
+    ];
+    if (path.endsWith('/payer-contracts/contract-1/tariffs') && route.request().method() === 'POST') body = {
+      id: 'tariff-1', contract_id: 'contract-1', procedure_definition_id: 'pd-us-1', eligibility: 'eligible',
+      tariff_amount: '750.00', currency: 'MXN', requires_authorization: false, valid_from: '2026-01-01',
+      is_active: true, created_by: 'apollo-receptionist', created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+    };
+    if (path.endsWith('/encounters/encounter-1/coverage') && route.request().method() === 'GET') body = encounterOneCoverage;
+    if (path.endsWith('/encounters/encounter-1/coverage') && route.request().method() === 'PUT') {
+      encounterOneCoverage = {
+        id: 'coverage-1', encounter_id: 'encounter-1', payer_id: 'payer-1', contract_id: 'contract-1',
+        is_primary: true, is_active: true, created_by: 'apollo-receptionist', created_at: new Date().toISOString(),
+      };
+      body = encounterOneCoverage;
+    }
+    if (path.endsWith('/orders/order-1/payer-resolution') && route.request().method() === 'GET') body = orderOneResolution;
+    if (path.endsWith('/orders/order-1/payer-resolution/override')) {
+      orderOneResolution = {
+        id: 'res-1', order_id: 'order-1', payer_id: 'payer-1', contract_id: 'contract-1', procedure_definition_id: 'pd-us-1',
+        eligibility_status: 'eligible', tariff_amount: '700.00', currency: 'MXN', requires_authorization: true,
+        authorization_reference: 'FOLIO-1', resolution_source: 'authorized_override',
+        resolved_by: 'apollo-receptionist', resolved_at: new Date().toISOString(),
+      };
+      body = orderOneResolution;
     }
     if (path.endsWith('/cash/access')) body = route.request().method() === 'POST' ? { unlocked: true, mode: 'development_bypass', expires_at: new Date(Date.now() + 900000).toISOString() } : { unlocked: false, mode: 'locked' };
     if (path.endsWith('/operational-worklist')) {
@@ -328,4 +362,49 @@ test('Lote F1 Caso D: Recepción resuelve un add-on pendiente de revisión sin o
 
   await expect(page.getByText(/resuelta/i)).toBeVisible();
   expect(cashCalls).toHaveLength(0);
+});
+
+test('Lote F2: Recepción asigna cobertura ISSSTESON y autoriza una excepción sin tocar la tarifa general', async ({ page }) => {
+  await page.goto('/recepcion');
+  await page.getByRole('button', { name: 'Órdenes' }).click();
+  await page.locator('.dense-row.order-row').filter({ hasText: 'AP260705000002' }).getByRole('button', { name: 'Gestionar' }).click();
+  await page.getByRole('button', { name: 'Financiero' }).click();
+
+  await expect(page.getByText('Particular')).toBeVisible();
+  await page.getByRole('button', { name: 'Asignar cobertura' }).click();
+  const coverageDialog = page.locator('[aria-labelledby="coverage-dialog-title"]');
+  await coverageDialog.getByLabel('Cobertura').selectOption('payer-1');
+  await coverageDialog.getByLabel('Convenio').selectOption('contract-1');
+  await coverageDialog.getByRole('button', { name: 'Asignar cobertura' }).click();
+  await expect(coverageDialog).toHaveCount(0);
+
+  await expect(page.getByText('ISSSTESON')).toBeVisible();
+  await expect(page.getByText('? Sin resolución todavía')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Autorizar excepción' }).click();
+  const overrideDialog = page.getByRole('dialog').last();
+  await overrideDialog.getByPlaceholder(/700\.00/).fill('700');
+  await overrideDialog.getByPlaceholder(/FOLIO-123/).fill('FOLIO-1');
+  await overrideDialog.getByPlaceholder(/vía telefónica/).fill('Autorizado por dependencia via telefono.');
+  await overrideDialog.getByRole('button', { name: 'Registrar excepción' }).click();
+
+  await expect(page.getByText('✓ Elegible')).toBeVisible();
+  await expect(page.getByText('Tarifa convenio: $700.00 MXN')).toBeVisible();
+});
+
+test('Lote F2: pestaña Subrogados muestra la matriz por procedimiento y permite configurar una tarifa', async ({ page }) => {
+  await page.goto('/configuracion/catalogo');
+  await page.getByRole('button', { name: 'Subrogados' }).click();
+  await page.locator('.component-row').filter({ hasText: 'Ultrasonido mamario' }).getByRole('button', { name: 'Ver subrogados' }).click();
+
+  await expect(page.getByText('ISSSTESON')).toBeVisible();
+  await expect(page.getByText('? No configurado')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Configurar' }).click();
+  const tariffDialog = page.getByRole('dialog').last();
+  await tariffDialog.getByLabel('Tarifa').fill('750.00');
+  await tariffDialog.getByLabel('Vigente desde').fill('2026-01-01');
+  await tariffDialog.getByRole('button', { name: 'Configurar tarifa' }).click();
+
+  await expect(page.getByText(/Tarifa configurada/)).toBeVisible();
 });
