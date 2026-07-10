@@ -1,4 +1,5 @@
 import { apiConfig } from './config';
+import { isApolloAuthenticationResponse } from '../auth';
 
 export class ApiError extends Error {
   constructor(
@@ -111,6 +112,10 @@ export async function apiRequestWithResponse<T>(
     if (timeoutId !== undefined) {
       globalThis.clearTimeout(timeoutId);
     }
+  }
+
+  if (isApolloAuthenticationResponse(response)) {
+    throw new ApiError('Apollo session requires authentication.', 401);
   }
 
   const payload = await readResponsePayload(response);
