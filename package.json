@@ -10,15 +10,21 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
+    "serve:macos-e2e": "node scripts/serve-macos-e2e.mjs",
     "test": "vitest run",
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@apollo/bridge-client": "file:vendor/apollo-desktop/0f4a4d9/apollo-bridge-client-0.1.0.tgz",
+    "@apollo/bridge-contract": "file:vendor/apollo-desktop/0f4a4d9/apollo-bridge-contract-0.1.0.tgz",
+    "@apollo/react-integration": "file:vendor/apollo-desktop/0f4a4d9/apollo-react-integration-0.2.0.tgz",
+    "@apollo/receipt-core": "file:vendor/apollo-desktop/0f4a4d9/apollo-receipt-core-0.1.0.tgz",
     "react": "19.2.7",
     "react-dom": "19.2.7",
     "react-router-dom": "^7.18.1"
   },
   "devDependencies": {
+    "@apollo/hardware-mock": "file:vendor/apollo-desktop/0f4a4d9/apollo-hardware-mock-0.1.0.tgz",
     "@playwright/test": "1.61.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",

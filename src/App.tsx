@@ -8,6 +8,7 @@ import { ReceptionPage } from './pages/ReceptionPage';
 import { TechnicalPage } from './pages/TechnicalPage';
 import { ViewerPage } from './pages/ViewerPage';
 import { RoleRoute, SessionProvider, useSession } from './session';
+import { apolloLogoutURL } from './auth';
 
 const RECEPTION = ['apollo-receptionist'];
 const CLINICAL = ['apollo-technician', 'apollo-physician'];
@@ -17,7 +18,7 @@ function Layout({ children }: { children: React.ReactNode }) {
   const { session } = useSession();
   const can = (roles: string[]) => session?.roles.some((role) => roles.includes(role));
   return <main className="app-shell"><header className="app-header"><Link className="brand-link" to="/"><span className="brand-mark" aria-hidden="true">⊙</span><span><strong>Apollo <em>PACS</em></strong><small>Gestión de estudios e imágenes</small></span></Link>
-    <nav>{can(RECEPTION) && <NavLink to="/recepcion">Recepción</NavLink>}{can(CLINICAL) && <NavLink to="/tecnico">Técnico</NavLink>}{can(PHYSICIAN) && <NavLink to="/medico">Médico</NavLink>}{can(CLINICAL) && <NavLink to="/visor">Visor PACS</NavLink>}{can(RECEPTION) && <NavLink to="/cuentas-por-cobrar">Cuentas por cobrar</NavLink>}{can(RECEPTION) && <NavLink to="/configuracion/catalogo">Configuración</NavLink>}</nav><span className="user-chip">{session?.username ?? '…'}</span></header><div className="content-shell">{children}</div></main>;
+    <nav>{can(RECEPTION) && <NavLink to="/recepcion">Recepción</NavLink>}{can(CLINICAL) && <NavLink to="/tecnico">Técnico</NavLink>}{can(PHYSICIAN) && <NavLink to="/medico">Médico</NavLink>}{can(CLINICAL) && <NavLink to="/visor">Visor PACS</NavLink>}{can(RECEPTION) && <NavLink to="/cuentas-por-cobrar">Cuentas por cobrar</NavLink>}{can(RECEPTION) && <NavLink to="/configuracion/catalogo">Configuración</NavLink>}</nav><span className="user-chip">{session?.username ?? '…'}</span><a className="session-logout" href={apolloLogoutURL()}>Cerrar sesión</a></header><div className="content-shell">{children}</div></main>;
 }
 
 function Dashboard() {

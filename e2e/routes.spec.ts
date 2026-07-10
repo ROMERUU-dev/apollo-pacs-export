@@ -153,6 +153,18 @@ test('las rutas React soportan navegación y recarga directa', async ({ page }) 
   await expect(page.locator('.traffic-lights')).toHaveCount(0);
 });
 
+test('Recepción normal conserva BrowserAdapter y no habilita hardware nativo', async ({ page }) => {
+  await page.goto('/recepcion');
+  await page.getByRole('button', { name: 'Configuración' }).click();
+  const device = page.locator('.device-status');
+  await expect(device.getByRole('heading', { name: 'Browser' })).toBeVisible();
+  await expect(device.getByText('Unavailable')).toBeVisible();
+  for (const capability of ['Printing', 'Printer status', 'Cash drawer', 'Device settings']) {
+    await expect(device.locator('dt', { hasText: capability }).locator('..').getByText('No disponible')).toBeVisible();
+  }
+  await expect(device.getByRole('button')).toHaveCount(0);
+});
+
 test('el menú respeta las rutas clínicas disponibles para la sesión', async ({ page }) => {
   await page.goto('/tecnico');
   await expect(page.getByRole('heading', { name: 'Estación del técnico' })).toBeVisible();

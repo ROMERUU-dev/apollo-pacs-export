@@ -3,6 +3,7 @@ WORKDIR /app
 ARG VITE_APOLLO_API_URL=/api/v1
 ENV VITE_APOLLO_API_URL=$VITE_APOLLO_API_URL
 COPY package.json package-lock.json ./
+COPY vendor/apollo-desktop ./vendor/apollo-desktop
 RUN npm ci
 COPY . .
 RUN npm run build

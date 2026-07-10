@@ -1,6 +1,8 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Navigate } from 'react-router-dom';
+import { ApiError } from './api/client';
 import { operationsApi, type Session } from './api/operations';
+import { apolloLoginURL } from './auth';
 import { ErrorState, LoadingState } from './components/states';
 
 interface SessionState { session?: Session; loading: boolean; error?: string }
@@ -11,7 +13,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     operationsApi.session()
       .then((session) => setState({ session, loading: false }))
-      .catch((error: Error) => setState({ loading: false, error: error.message }));
+      .catch((error: Error) => {
+        if (error instanceof ApiError && error.status === 401) {
+          window.location.replace(apolloLoginURL(window.location.pathname));
+          return;
+        }
+        setState({ loading: false, error: error.message });
+      });
   }, []);
   return <SessionContext.Provider value={state}>{children}</SessionContext.Provider>;
 }
