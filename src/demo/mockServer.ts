@@ -171,6 +171,8 @@ export function installDemoServer(): void {
 }
 
 export function demoEnabled(): boolean {
+  // Dev/preview only — never let the synthetic mock activate in a production build.
+  if (!import.meta.env.DEV) return false;
   try {
     const q = new URLSearchParams(location.search).get('demo');
     if (q === '1') { localStorage.setItem('belstrel-demo', '1'); return true; }
