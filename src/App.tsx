@@ -1,7 +1,11 @@
 import { Link, NavLink, Route, Routes } from 'react-router-dom';
+import { BelkaLogo } from './components/brand';
 import { SystemStatus } from './components/dashboard';
+import { BRAND } from './brand';
+import { CatalogSettingsPage } from './pages/CatalogSettingsPage';
 import { DoctorPage } from './pages/DoctorPage';
 import { PortalPage } from './pages/PortalPage';
+import { ReceivablesPage } from './pages/ReceivablesPage';
 import { ReceptionPage } from './pages/ReceptionPage';
 import { TechnicalPage } from './pages/TechnicalPage';
 import { ViewerPage } from './pages/ViewerPage';
@@ -14,8 +18,8 @@ const PHYSICIAN = ['apollo-physician'];
 function Layout({ children }: { children: React.ReactNode }) {
   const { session } = useSession();
   const can = (roles: string[]) => session?.roles.some((role) => roles.includes(role));
-  return <main className="app-shell"><header className="app-header"><Link className="brand-link" to="/"><span className="brand-mark" aria-hidden="true">⊙</span><span><strong>Apollo <em>PACS</em></strong><small>Gestión de estudios e imágenes</small></span></Link>
-    <nav>{can(RECEPTION) && <NavLink to="/recepcion">Recepción</NavLink>}{can(CLINICAL) && <NavLink to="/tecnico">Técnico</NavLink>}{can(PHYSICIAN) && <NavLink to="/medico">Médico</NavLink>}{can(CLINICAL) && <NavLink to="/visor">Visor PACS</NavLink>}</nav><span className="user-chip">{session?.username ?? '…'}</span></header><div className="content-shell">{children}</div></main>;
+  return <main className="app-shell"><header className="app-header"><Link className="brand-link" to="/"><BelkaLogo className="brand-squirrel" size={30} /><span><strong>{BRAND.name} <em>{BRAND.suffix}</em></strong><small>{BRAND.tagline}</small></span></Link>
+    <nav>{can(RECEPTION) && <NavLink to="/recepcion">Recepción</NavLink>}{can(CLINICAL) && <NavLink to="/tecnico">Técnico</NavLink>}{can(PHYSICIAN) && <NavLink to="/medico">Médico</NavLink>}{can(CLINICAL) && <NavLink to="/visor">Visor PACS</NavLink>}{can(RECEPTION) && <NavLink to="/cuentas-por-cobrar">Cuentas por cobrar</NavLink>}{can(RECEPTION) && <NavLink to="/configuracion/catalogo">Configuración</NavLink>}</nav><span className="user-chip">{session?.username ?? '…'}</span></header><div className="content-shell">{children}</div></main>;
 }
 
 function Dashboard() {
@@ -24,9 +28,11 @@ function Dashboard() {
     { path: '/recepcion', name: 'Recepción', role: 'apollo-receptionist', text: 'Pacientes, catálogo, cotizaciones y caja.' },
     { path: '/tecnico', name: 'Técnico', role: 'apollo-technician', text: 'Worklist, estudios y adquisición.' },
     { path: '/medico', name: 'Médico', role: 'apollo-physician', text: 'Lectura, reportes y enlaces temporales.' },
-    { path: '/visor', name: 'Visor OHIF', role: 'apollo-technician', text: 'Imágenes DICOM del estudio autorizado.' },
+    { path: '/visor', name: 'Visor PACS', role: 'apollo-technician', text: 'Imágenes DICOM del estudio autorizado.' },
+    { path: '/configuracion/catalogo', name: 'Configuración', role: 'apollo-receptionist', text: 'Catálogo clínico: Offerings, procedimientos, composición y precio base.' },
+    { path: '/cuentas-por-cobrar', name: 'Cuentas por cobrar', role: 'apollo-receptionist', text: 'Ledger de dependencias: receivables, lotes de presentación, pagos y campañas.' },
   ];
-  return <><section className="hero-panel"><p className="eyebrow">Centro de operación</p><h1>Apollo PACS</h1><p>Flujo clínico y administrativo con contabilidad MXN, cobros MXN/USD y trazabilidad completa.</p>{error && <p className="alert alert--error">{error}</p>}</section><SystemStatus /><section className="screen-grid">{cards.filter((card) => session?.roles.includes(card.role) || (card.path === '/visor' && session?.roles.includes('apollo-physician'))).map((card) => <Link className="screen-card" to={card.path} key={card.path}><strong>{card.name}</strong><p>{card.text}</p><span>Abrir →</span></Link>)}</section></>;
+  return <><div className="screen-heading"><h1 className="screen-title">Centro de operación</h1></div>{error && <p className="alert alert--error">{error}</p>}<SystemStatus /><section className="screen-grid">{cards.filter((card) => session?.roles.includes(card.role) || (card.path === '/visor' && session?.roles.includes('apollo-physician'))).map((card) => <Link className="screen-card" to={card.path} key={card.path}><strong>{card.name}</strong><p>{card.text}</p><span>Abrir →</span></Link>)}</section></>;
 }
 
 function App() {
@@ -38,6 +44,8 @@ function App() {
       <Route path="/tecnico" element={<RoleRoute roles={CLINICAL}><TechnicalPage /></RoleRoute>} />
       <Route path="/medico" element={<RoleRoute roles={PHYSICIAN}><DoctorPage /></RoleRoute>} />
       <Route path="/visor" element={<RoleRoute roles={CLINICAL}><ViewerPage /></RoleRoute>} />
+      <Route path="/configuracion/catalogo" element={<RoleRoute roles={RECEPTION}><CatalogSettingsPage /></RoleRoute>} />
+      <Route path="/cuentas-por-cobrar" element={<RoleRoute roles={RECEPTION}><ReceivablesPage /></RoleRoute>} />
       <Route path="*" element={<section className="panel"><h2>Ruta no encontrada</h2><Link to="/">Volver al inicio</Link></section>} />
     </Routes></Layout></SessionProvider>} />
   </Routes>;
