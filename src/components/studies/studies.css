@@ -35,7 +35,7 @@
   font: inherit;
 }
 .study-filters input:focus,
-.study-filters select:focus { outline: 2px solid #7c6cff; outline-offset: 1px; }
+.study-filters select:focus { outline: 2px solid #d2694a; outline-offset: 1px; }
 .filter-actions { display: flex; align-items: flex-end; gap: 8px; }
 .secondary-button,
 .pagination button {
@@ -66,16 +66,16 @@
   cursor: pointer;
 }
 .study-row:hover { border-color: #54499e; }
-.study-row--selected { border-color: #7c6cff; background: #1a1830; }
+.study-row--selected { border-color: #d2694a; background: #1a1830; }
 .modality-badge {
   display: inline-flex;
   width: fit-content;
   justify-content: center;
   padding: 5px 7px;
-  border: 1px solid rgba(124, 108, 255, .38);
+  border: 1px solid rgba(210, 105, 74, .38);
   border-radius: 7px;
-  color: #c9c2ff;
-  background: rgba(124, 108, 255, .12);
+  color: #f0b79f;
+  background: rgba(210, 105, 74, .12);
   font: 700 11px ui-monospace, monospace;
 }
 .study-main { display: flex; min-width: 0; flex-direction: column; gap: 3px; }
