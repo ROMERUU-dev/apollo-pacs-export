@@ -17,10 +17,10 @@ export function OperationalWorklistTable({ items, selectedId, onSelect }: {
       type="button"
       role="row"
     >
-      <span>{sameVisit
+      <span className="wl-patient">{!sameVisit && <i className={`row-dot ${item.procedure.status}`} aria-hidden="true" />}<span className="wl-id">{sameVisit
         ? <small className="same-visit-marker">↳ misma visita</small>
         : <><b>{item.patient.last_name}, {item.patient.first_name}</b><small>PatientID {item.patient.mrn} · Accession {item.procedure.accession_number}</small></>}
-      {sameVisit && <small>Accession {item.procedure.accession_number}</small>}</span>
+      {sameVisit && <small>Accession {item.procedure.accession_number}</small>}</span></span>
       <span><i className="modality-chip">{item.procedure.modality}</i></span>
       <span>{item.procedure.description ?? 'Estudio de imagen'}</span>
       <span className="mono">{item.procedure.scheduled_at ? new Date(item.procedure.scheduled_at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }) : '—'}</span>
