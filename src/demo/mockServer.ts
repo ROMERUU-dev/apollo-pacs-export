@@ -73,6 +73,24 @@ const CASH_SESSIONS = [{ id: 'cash-1', status: 'open', opened_by: 'dra.demo', op
 const CASH_MOVEMENTS = [{ id: 'mv-1', cash_session_id: 'cash-1', kind: 'in', currency: 'MXN', amount: '850.00', amount_mxn: '850.00', created_at: iso(9, 15) }];
 const PAYMENTS = [{ id: 'pay-1', cash_session_id: 'cash-1', quote_id: 'q-1', total_received_mxn: '1000.00', applied_mxn: '850.00', change_mxn: '150.00', created_at: iso(9, 15), components: [] }];
 
+const PAYERS = [
+  { id: 'payer-1', code: 'SSA-SON', name: 'Secretaría de Salud de Sonora', is_active: true, created_at: iso(8, 0), updated_at: iso(8, 0) },
+  { id: 'payer-2', code: 'ISSSTE', name: 'ISSSTE', is_active: true, created_at: iso(8, 0), updated_at: iso(8, 0) },
+  { id: 'payer-3', code: 'IMSS-BX', name: 'IMSS Bienestar', is_active: true, created_at: iso(8, 0), updated_at: iso(8, 0) },
+];
+const PROCEDURE_DEFS = [
+  { id: 'pd-1', code: 'US-ABD', name: 'Ultrasonido abdominal', modality: 'US', is_active: true },
+  { id: 'pd-2', code: 'MG-BIL', name: 'Mastografía bilateral', modality: 'MG', is_active: true },
+  { id: 'pd-3', code: 'DX-TORAX', name: 'Radiografía de tórax', modality: 'DX', is_active: true },
+  { id: 'pd-4', code: 'CT-ABD', name: 'Tomografía de abdomen', modality: 'CT', is_active: true },
+];
+const RECEIVABLES = [
+  { id: 'rcv-1', payer_id: 'payer-1', payer_pricing_resolution_id: 'res-1', order_id: 'ord-1', procedure_definition_id: 'US-ABD', encounter_id: 'enc-1', original_amount: '850.00', paid_amount: '0.00', outstanding_amount: '850.00', currency: 'MXN', status: 'submitted', service_date: iso(9, 30), created_by: 'dra.demo', created_at: iso(9, 30), updated_at: iso(9, 30) },
+  { id: 'rcv-2', payer_id: 'payer-2', payer_pricing_resolution_id: 'res-2', order_id: 'ord-3', procedure_definition_id: 'DX-TORAX', encounter_id: 'enc-3', original_amount: '450.00', paid_amount: '450.00', outstanding_amount: '0.00', currency: 'MXN', status: 'paid', service_date: iso(10, 30), created_by: 'dra.demo', created_at: iso(10, 30), updated_at: iso(10, 30) },
+  { id: 'rcv-3', payer_id: 'payer-1', payer_pricing_resolution_id: 'res-3', order_id: 'ord-2', procedure_definition_id: 'MG-BIL', encounter_id: 'enc-2', original_amount: '1200.00', paid_amount: '0.00', outstanding_amount: '1200.00', currency: 'MXN', status: 'accepted', service_date: iso(10, 0), created_by: 'dra.demo', created_at: iso(10, 0), updated_at: iso(10, 0) },
+];
+const RECEIVABLES_SUMMARY = { gross_expected: '2500.00', submitted: '850.00', accepted: '450.00', rejected: '0.00', disputed: '0.00', paid: '450.00', outstanding: '2050.00', count: 3 };
+
 function reportFor(studyId: string, latest?: { content: string; status: string }) {
   const content = latest?.content ?? REPORT_SEED[studyId];
   const version = content
@@ -96,6 +114,16 @@ function route(path: string, method: string, body: unknown): { data: unknown; he
   if (path === '/cash/sessions') return { data: method === 'POST' ? CASH_SESSIONS[0] : CASH_SESSIONS };
   if (path === '/cash/movements') return { data: method === 'POST' ? CASH_MOVEMENTS[0] : CASH_MOVEMENTS };
   if (path === '/cash/payments') return { data: method === 'POST' ? PAYMENTS[0] : PAYMENTS };
+  if (path === '/payers') return { data: method === 'POST' || method === 'PUT' ? PAYERS[0] : PAYERS };
+  if (/^\/payers\/[^/]+\/contracts$/.test(path)) return { data: [] };
+  if (path === '/procedure-definitions') return { data: method === 'POST' ? PROCEDURE_DEFS[0] : PROCEDURE_DEFS };
+  if (path === '/payer-receivables/summary') return { data: RECEIVABLES_SUMMARY };
+  if (path === '/payer-receivables') return { data: RECEIVABLES };
+  const rcv = path.match(/^\/payer-receivables\/([^/]+)$/);
+  if (rcv) return { data: RECEIVABLES.find((r) => r.id === rcv[1]) ?? RECEIVABLES[0] };
+  if (path === '/payer-remittances') return { data: [] };
+  if (path === '/payer-submission-batches') return { data: [] };
+  if (path === '/campaigns') return { data: [] };
 
   const report = path.match(/^\/studies\/([^/]+)\/report$/);
   if (report) {
