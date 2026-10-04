@@ -40,6 +40,39 @@ const DEMO_VIEWER = 'data:text/html;charset=utf-8,' + encodeURIComponent(viewerH
 const HEALTH = { status: 'online', service: 'belstrel-api', version: 'demo', timestamp: new Date().toISOString() };
 const PACS_HEALTH = { status: 'online', service: 'orthanc', version: 'demo', timestamp: new Date().toISOString() };
 
+const PATIENTS = [
+  { id: 'pat-1', mrn: 'BLK-1001', first_name: 'Mariana', last_name: 'Prueba', second_last_name: 'Demo', birth_date: '1986-04-12', sex: 'female', phone: '+52 638 100 0001' },
+  { id: 'pat-2', mrn: 'BLK-1002', first_name: 'Jorge', last_name: 'Demo', birth_date: '1979-09-03', sex: 'male' },
+  { id: 'pat-3', mrn: 'BLK-1003', first_name: 'Luisa', last_name: 'Ejemplo', birth_date: '1991-01-22', sex: 'female' },
+];
+
+const CATALOG = [
+  { id: 'cat-1', code: 'US-ABD', name: 'Ultrasonido abdominal', modality: 'US', description: 'No requiere preparación previa', amount: '850.00', currency: 'MXN', is_active: true },
+  { id: 'cat-2', code: 'MG-BIL', name: 'Mastografía bilateral', modality: 'MG', description: 'No usar desodorante el día del estudio', amount: '1200.00', currency: 'MXN', is_active: true },
+  { id: 'cat-3', code: 'DX-TORAX', name: 'Radiografía de tórax', modality: 'DX', amount: '450.00', currency: 'MXN', is_active: true },
+  { id: 'cat-4', code: 'DX-RODILLA', name: 'Rodilla AP y lateral', modality: 'DX', amount: '500.00', currency: 'MXN', is_active: true },
+  { id: 'cat-5', code: 'US-TIR', name: 'Ultrasonido tiroideo', modality: 'US', amount: '700.00', currency: 'MXN', is_active: true },
+  { id: 'cat-6', code: 'CT-ABD', name: 'Tomografía de abdomen', modality: 'CT', description: 'Ayuno de 6 horas', amount: '3500.00', currency: 'MXN', is_active: true },
+];
+
+const RATES = [{ id: 'rate-1', mxn_per_usd: '18.50', effective_at: iso(8, 0), created_by: 'dra.demo', is_active: true }];
+
+const ORDERS = [
+  { id: 'ord-1', patient_id: 'pat-1', accession_number: 'ACC-1001', modality: 'US', status: 'scheduled', priority: 'routine', description: 'US abdominal', scheduled_at: iso(9, 30), encounter_id: 'enc-1' },
+  { id: 'ord-2', patient_id: 'pat-2', accession_number: 'ACC-1002', modality: 'MG', status: 'registered', priority: 'urgent', description: 'Mastografía bilateral' },
+  { id: 'ord-3', patient_id: 'pat-3', accession_number: 'ACC-1003', modality: 'DX', status: 'completed', priority: 'routine', description: 'Tórax PA', scheduled_at: iso(10, 30), encounter_id: 'enc-3' },
+];
+
+const QUOTES = [
+  { id: 'q-1', patient_id: 'pat-1', status: 'pending', total_mxn: '850.00', created_at: iso(9, 10), lines: [] },
+  { id: 'q-2', patient_id: 'pat-2', status: 'pending', total_mxn: '1200.00', created_at: iso(9, 40), lines: [] },
+];
+
+const CASH_ACCESS = { unlocked: true, mode: 'development_bypass' };
+const CASH_SESSIONS = [{ id: 'cash-1', status: 'open', opened_by: 'dra.demo', opened_at: iso(8, 0), opening_mxn: '2000.00', opening_usd: '100.00', physical_mxn: '2000.00', physical_usd: '100.00' }];
+const CASH_MOVEMENTS = [{ id: 'mv-1', cash_session_id: 'cash-1', kind: 'in', currency: 'MXN', amount: '850.00', amount_mxn: '850.00', created_at: iso(9, 15) }];
+const PAYMENTS = [{ id: 'pay-1', cash_session_id: 'cash-1', quote_id: 'q-1', total_received_mxn: '1000.00', applied_mxn: '850.00', change_mxn: '150.00', created_at: iso(9, 15), components: [] }];
+
 function reportFor(studyId: string, latest?: { content: string; status: string }) {
   const content = latest?.content ?? REPORT_SEED[studyId];
   const version = content
@@ -54,7 +87,15 @@ function route(path: string, method: string, body: unknown): { data: unknown; he
   if (path === '/pacs/health') return { data: PACS_HEALTH };
   if (path === '/operational-worklist') return { data: WORKLIST };
   if (path === '/studies') return { data: STUDIES, headers: { 'X-Total-Count': String(STUDIES.length) } };
-  if (path === '/orders') return { data: [] };
+  if (path === '/orders') return { data: method === 'POST' ? ORDERS[0] : ORDERS };
+  if (path === '/patients') return { data: method === 'POST' ? PATIENTS[0] : PATIENTS };
+  if (path === '/catalog-items') return { data: method === 'POST' ? CATALOG[0] : CATALOG };
+  if (path === '/exchange-rates') return { data: method === 'POST' ? RATES[0] : RATES };
+  if (path === '/quotes') return { data: method === 'POST' ? QUOTES[0] : QUOTES };
+  if (path === '/cash/access') return { data: CASH_ACCESS };
+  if (path === '/cash/sessions') return { data: method === 'POST' ? CASH_SESSIONS[0] : CASH_SESSIONS };
+  if (path === '/cash/movements') return { data: method === 'POST' ? CASH_MOVEMENTS[0] : CASH_MOVEMENTS };
+  if (path === '/cash/payments') return { data: method === 'POST' ? PAYMENTS[0] : PAYMENTS };
 
   const report = path.match(/^\/studies\/([^/]+)\/report$/);
   if (report) {
@@ -65,6 +106,12 @@ function route(path: string, method: string, body: unknown): { data: unknown; he
   if (shares) return { data: method === 'POST' ? { id: 'share-demo', study_id: shares[1], redeem_url: '/portal?token=demo', expires_at: iso(23, 59) } : [] };
   if (/^\/studies\/[^/]+\/viewer-launch$/.test(path)) return { data: { viewer_url: DEMO_VIEWER } };
   if (/^\/orders\/[^/]+\/status$/.test(path)) return { data: { id: 'ord-x', patient_id: 'p', accession_number: 'ACC', modality: 'US', status: 'in_progress', priority: 'routine' } };
+  const catDetail = path.match(/^\/catalog-items\/([^/]+)\/detail$/);
+  if (catDetail) { const item = CATALOG.find((c) => c.id === catDetail[1]) ?? CATALOG[0]; return { data: { ...item, components: [] } }; }
+  if (/^\/quotes\/[^/]+\/schedule$/.test(path)) return { data: [ORDERS[0]] };
+  if (/^\/cash\/sessions\/[^/]+\/(open|close)$/.test(path)) return { data: CASH_SESSIONS[0] };
+  if (/^\/cash\/sessions\/[^/]+\/pay$/.test(path)) return { data: PAYMENTS[0] };
+  if (/^\/cash\/sessions\/[^/]+\/movements$/.test(path)) return { data: CASH_MOVEMENTS[0] };
 
   // Unmapped endpoints (catalog, receivables, payers...) — empty lists keep those
   // screens from crashing; they just render their empty states in demo mode.
