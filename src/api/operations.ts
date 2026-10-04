@@ -112,7 +112,7 @@ export interface Payment { id: string; cash_session_id: string; quote_id: string
 export interface CashMovement { id: string; cash_session_id: string; payment_id?: string; kind: string; currency: Currency; amount: string; amount_mxn: string; created_at: string }
 export interface CashAccess { unlocked: boolean; expires_at?: string; mode: 'oidc_reauthentication' | 'development_bypass' | 'locked' }
 export interface TicketSettings { id: string; commercial_name: string; legal_name?: string; tax_id?: string; address?: string; phone?: string; header_text?: string; footer_text?: string; final_message?: string; show_logo: boolean; show_folio: boolean; show_patient: boolean; show_studies: boolean; show_line_prices: boolean; show_subtotal: boolean; show_total: boolean; show_currency: boolean; show_exchange_rate: boolean; show_payment_method: boolean; paper_width: '58mm' | '80mm' | 'letter'; updated_by?: string; updated_at: string }
-export interface ReportVersion { id: string; version: number; status: string; content: string; amendment_reason?: string; author: string; finalized_at?: string }
+export interface ReportVersion { id: string; version: number; status: string; content: string; content_html?: string; amendment_reason?: string; author: string; finalized_at?: string }
 export interface Report { study_id: string; versions: ReportVersion[]; latest?: ReportVersion; final?: ReportVersion }
 export interface Share { id: string; expires_at: string; revoked_at?: string; token?: string; redeem_url?: string }
 export type DeliveryChannel = 'email' | 'whatsapp';
@@ -233,8 +233,8 @@ export const operationsApi = {
   ticketSettings: () => required<TicketSettings>('/cash/ticket-settings'),
   saveTicketSettings: (value: Omit<TicketSettings, 'id' | 'updated_at' | 'updated_by'>) => required<TicketSettings>('/cash/ticket-settings', { method: 'PUT', json: value }),
   report: (studyId: string) => required<Report>(`/studies/${studyId}/report`),
-  saveReport: (studyId: string, content: string, final: boolean, amendmentReason?: string) => required<Report>(`/studies/${studyId}/report`, {
-    method: 'POST', json: { content, status: final ? 'final' : 'draft', amendment_reason: amendmentReason || null },
+  saveReport: (studyId: string, content: string, final: boolean, amendmentReason?: string, contentHtml?: string) => required<Report>(`/studies/${studyId}/report`, {
+    method: 'POST', json: { content, content_html: contentHtml ?? null, status: final ? 'final' : 'draft', amendment_reason: amendmentReason || null },
   }),
   shares: (studyId: string) => required<Share[]>(`/studies/${studyId}/shares`),
   createShare: (studyId: string) => required<Share>(`/studies/${studyId}/shares`, { method: 'POST' }),

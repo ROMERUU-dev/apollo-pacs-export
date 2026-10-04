@@ -8,7 +8,7 @@ import { getStudies, launchStudyViewer, type StudySummary } from '../api/studies
 import { operationsApi, type Order, type Report, type Share } from '../api/operations';
 import { StudyDeliveryDialog } from '../components/studies';
 import { AddOnProcedureDialog } from '../components/addon';
-import { RichReportEditor, REPORT_TEMPLATES, DEFAULT_REPORT_HTML } from '../components/reporter';
+import { RichReportEditor, REPORT_TEMPLATES, DEFAULT_REPORT_HTML, htmlToPlainText } from '../components/reporter';
 
 const PATIENTS_PANEL_KEY = 'medicalPatientsPanelCollapsed';
 const REPORTER_PANEL_KEY = 'medicalReporterPanelCollapsed';
@@ -61,7 +61,7 @@ export function DoctorPage() {
     setSelected(study); setNewLink(undefined); setSelectedOrder(undefined); setViewerUrl(undefined); setPreview(false);
     try {
       const [r, s] = await Promise.all([operationsApi.report(study.id), operationsApi.shares(study.id)]);
-      setReport(r); setContent(r.latest?.content ?? DEFAULT_REPORT_HTML); setSeed((n) => n + 1); setShares(s);
+      setReport(r); setContent(r.latest?.content_html ?? r.latest?.content ?? DEFAULT_REPORT_HTML); setSeed((n) => n + 1); setShares(s);
     } catch (e) { setError((e as Error).message); }
     if (study.accessionNumber) {
       try { const [order] = await operationsApi.ordersByAccession(study.accessionNumber); if (order?.encounter_id) setSelectedOrder(order); }
@@ -69,7 +69,7 @@ export function DoctorPage() {
     }
   }
   function applyTemplate(html: string) { setContent(html); setSeed((n) => n + 1); setShowTemplates(false); }
-  async function save(final: boolean) { if (!selected) return; try { const value = await operationsApi.saveReport(selected.id, content, final, reason); setReport(value); setReason(''); } catch (e) { setError((e as Error).message); } }
+  async function save(final: boolean) { if (!selected) return; try { const value = await operationsApi.saveReport(selected.id, htmlToPlainText(content), final, reason, content); setReport(value); setReason(''); } catch (e) { setError((e as Error).message); } }
   async function share() { if (!selected) return; try { const value = await operationsApi.createShare(selected.id); setShares(await operationsApi.shares(selected.id)); setNewLink(`${location.origin}${value.redeem_url}`); } catch (e) { setError((e as Error).message); } }
   async function revoke(id: string) { if (!selected) return; await operationsApi.revokeShare(selected.id, id); setShares(await operationsApi.shares(selected.id)); }
   async function loadViewer() { if (!selected) return; try { const value = await launchStudyViewer(selected.id); setViewerUrl(value.viewerUrl); } catch (e) { setError((e as Error).message); } }

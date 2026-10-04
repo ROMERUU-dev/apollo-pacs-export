@@ -11,6 +11,17 @@ export function sanitizeReportHtml(html: string): string {
   return DOMPurify.sanitize(html, ALLOWED);
 }
 
+/** Flatten the rich report to plain text (block tags -> newlines, list items -> "- "). */
+export function htmlToPlainText(html: string): string {
+  const withBreaks = sanitizeReportHtml(html)
+    .replace(/<li[^>]*>/gi, '- ')
+    .replace(/<\/(p|div|h[1-6]|li|ul|ol)>/gi, '\n')
+    .replace(/<br\s*\/?>/gi, '\n');
+  const el = document.createElement('div');
+  el.innerHTML = withBreaks;
+  return (el.textContent ?? '').replace(/\n{3,}/g, '\n\n').trim();
+}
+
 interface RichReportEditorProps {
   html: string;
   /** Re-seeds the editable DOM when it changes (e.g. the selected study). */

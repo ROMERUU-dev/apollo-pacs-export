@@ -91,12 +91,15 @@ const RECEIVABLES = [
 ];
 const RECEIVABLES_SUMMARY = { gross_expected: '2500.00', submitted: '850.00', accepted: '450.00', rejected: '0.00', disputed: '0.00', paid: '450.00', outstanding: '2050.00', count: 3 };
 
-function reportFor(studyId: string, latest?: { content: string; status: string }) {
-  const content = latest?.content ?? REPORT_SEED[studyId];
-  const version = content
-    ? { id: `${studyId}-v1`, version: 1, status: latest?.status ?? 'draft', content, author: 'dra.demo', finalized_at: latest?.status === 'final' ? new Date().toISOString() : undefined }
-    : undefined;
-  return { study_id: studyId, versions: version ? [version] : [], latest: version, final: version?.status === 'final' ? version : undefined };
+function reportFor(studyId: string, body?: { content?: string; content_html?: string; status?: string }) {
+  const html = body?.content_html ?? REPORT_SEED[studyId];
+  const content = body?.content ?? (html ? html.replace(/<[^>]+>/g, '').trim() : undefined);
+  if (content === undefined && html === undefined) {
+    return { study_id: studyId, versions: [], latest: undefined, final: undefined };
+  }
+  const status = body?.status ?? 'draft';
+  const version = { id: `${studyId}-v1`, version: 1, status, content: content ?? '', content_html: html, author: 'dra.demo', finalized_at: status === 'final' ? new Date().toISOString() : undefined };
+  return { study_id: studyId, versions: [version], latest: version, final: status === 'final' ? version : undefined };
 }
 
 function route(path: string, method: string, body: unknown): { data: unknown; headers?: Record<string, string> } | undefined {
@@ -127,7 +130,7 @@ function route(path: string, method: string, body: unknown): { data: unknown; he
 
   const report = path.match(/^\/studies\/([^/]+)\/report$/);
   if (report) {
-    if (method === 'POST') { const b = body as { content: string; status: string } | undefined; return { data: reportFor(report[1], b) }; }
+    if (method === 'POST') { const b = body as { content?: string; content_html?: string; status?: string } | undefined; return { data: reportFor(report[1], b) }; }
     return { data: reportFor(report[1]) };
   }
   const shares = path.match(/^\/studies\/([^/]+)\/shares$/);
