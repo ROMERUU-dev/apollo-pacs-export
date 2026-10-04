@@ -79,14 +79,15 @@ describe('DoctorPage panel collapse (Lote C5)', () => {
     render(<DoctorPage />);
     await screen.findByText('US mamario');
 
-    const textarea = await screen.findByRole('textbox');
-    fireEvent.change(textarea, { target: { value: 'HALLAZGOS: prueba de persistencia' } });
+    const editor = await screen.findByRole('textbox');
+    editor.innerHTML = '<p>HALLAZGOS: prueba de persistencia</p>';
+    fireEvent.input(editor);
 
     fireEvent.click(screen.getByLabelText('Colapsar reporte'));
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByLabelText('Expandir reporte'));
-    expect(screen.getByRole('textbox')).toHaveValue('HALLAZGOS: prueba de persistencia');
+    expect(screen.getByRole('textbox')).toHaveTextContent('prueba de persistencia');
   });
 
   it('persists the collapse preference to localStorage as a plain boolean', async () => {
