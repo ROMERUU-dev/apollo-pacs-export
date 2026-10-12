@@ -2,7 +2,8 @@ import { apiRequest } from './client';
 
 export type Currency = 'MXN' | 'USD';
 export interface Session { username: string; subject: string; roles: string[] }
-export interface Patient { id: string; mrn: string; first_name: string; last_name: string; second_last_name?: string; middle_name?: string; birth_date: string; sex: string; phone?: string; email?: string }
+export type PatientLanguage = 'es' | 'en';
+export interface Patient { id: string; mrn: string; first_name: string; last_name: string; second_last_name?: string; middle_name?: string; birth_date: string; sex: string; phone?: string; email?: string; preferred_language?: PatientLanguage }
 export type OrderStatus = 'registered' | 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
 export interface Order { id: string; patient_id: string; accession_number: string; modality: string; status: OrderStatus; priority: 'routine' | 'urgent' | 'stat'; description?: string; scheduled_at?: string; scheduled_duration_minutes?: number; scheduled_station_ae_title?: string; scheduled_station_name?: string; quote_line_id?: string; encounter_id?: string; imaging_service_request_id?: string; procedure_definition_id?: string; financial_resolution_status?: string }
 export interface CatalogItem { id: string; code: string; name: string; modality?: string; description?: string; amount: string; currency: Currency; is_active: boolean }

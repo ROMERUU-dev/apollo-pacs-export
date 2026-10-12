@@ -11,12 +11,70 @@ import '../portal/portal.css';
 
 interface PortalReport extends ReportVersion { signed_by?: string | null; created_at?: string }
 interface PortalStudy { study_id: string; study_instance_uid: string; description?: string | null; study_date?: string | null; report_signed: boolean; report?: PortalReport | null; viewer_url: string }
-interface PortalData { study_id: string; patient_name: string; description?: string | null; viewer_url: string; expires_at: string; report?: PortalReport | null; studies?: PortalStudy[] }
+interface PortalData { study_id: string; patient_name: string; description?: string | null; viewer_url: string; expires_at: string; report?: PortalReport | null; studies?: PortalStudy[]; language?: string }
 /** Before the identity check the API returns only the gate state: no name, no study, no report. */
 interface PortalGate { verification_required: true; methods?: string[]; attempts_left: number; expires_at: string }
 type PortalResponse = PortalGate | PortalData;
 type IdentityMethod = 'birth_date' | 'last_name';
 type Identity = { birth_date: string } | { last_name: string };
+
+export type Lang = 'es' | 'en';
+
+/** Every patient-facing string, by language. Before the identity check the language follows the
+ * browser; once the API answers, the language registered at reception wins. */
+const TEXTS = {
+  es: {
+    locale: 'es-MX', title: 'Resultados', secure: 'Entrega segura', secureTitle: 'Enlace personal y cifrado', loading: 'Cargando tus resultados',
+    legalNav: 'Información legal y contacto', privacy: 'Aviso de privacidad', tel: 'Tel.', powered: 'Tecnología',
+    gateEyebrow: 'Antes de continuar', gateTitle: 'Confirma la identidad del paciente',
+    gateText: 'Este enlace es personal. Para proteger los resultados, escribe la fecha de nacimiento del paciente o su apellido paterno.',
+    gateGroup: 'Dato para confirmar la identidad', birthDate: 'Fecha de nacimiento', lastName: 'Apellido paterno',
+    birthDateField: 'Fecha de nacimiento del paciente', lastNameField: 'Apellido paterno del paciente', lastNamePlaceholder: 'Por ejemplo: García',
+    verifying: 'Verificando…', seeResults: 'Ver mis resultados',
+    attemptsLeft: (n: number) => n === 1 ? 'Te queda 1 intento.' : `Te quedan ${n} intentos.`,
+    mismatch: (n: number) => n === 1 ? 'La información no coincide. Te queda 1 intento.' : `La información no coincide. Te quedan ${n} intentos.`,
+    expiredTitle: 'Este enlace ya no está activo', expiredText: 'Los enlaces son personales y caducan a las 72 horas, o se cierran si se abren en otra sesión.',
+    lockedTitle: 'Por seguridad, este enlace se desactivó', lockedText: 'Se agotaron los intentos para confirmar la identidad del paciente. Pide un enlace nuevo y vuelve a intentarlo.',
+    otherTitle: 'No pudimos cargar tus resultados', otherText: 'Revisa tu conexión e inténtalo de nuevo en unos minutos.',
+    newLink: 'Pedir un enlace nuevo por WhatsApp', keyword: 'Revisar Estudios', writeHint: 'Escribe', writeHintTail: 'y te responderemos con un enlace nuevo.', callHint: 'También puedes llamar al',
+    ready: 'Tus resultados están listos', hello: 'Hola', study: 'Estudio de imagen', seeImages: 'Ver mis imágenes',
+    viewerHint: 'Se abre el visor de imágenes. Puedes acercar, desplazarte y cambiar de serie con los dedos o el ratón.',
+    report: 'Informe', signed: 'Firmado', inProgress: 'En proceso', signedOn: 'Firmado el',
+    reportPending: 'El médico radiólogo aún no firma tu informe. En cuanto esté listo lo verás aquí mismo, con este mismo enlace; no necesitas pedir otro.',
+    others: 'Otros estudios compartidos', reportSigned: 'Informe firmado', reportInProgress: 'Informe en proceso', see: 'Ver',
+    session: 'Sesión activa', until: 'hasta las', sessionTail: 'Si se cierra, vuelve a abrir el enlace que recibiste por WhatsApp.',
+  },
+  en: {
+    locale: 'en-US', title: 'Results', secure: 'Secure delivery', secureTitle: 'Personal, encrypted link', loading: 'Loading your results',
+    legalNav: 'Legal information and contact', privacy: 'Privacy notice', tel: 'Phone', powered: 'Powered by',
+    gateEyebrow: 'Before you continue', gateTitle: "Confirm the patient's identity",
+    gateText: "This link is personal. To protect the results, enter the patient's date of birth or last name.",
+    gateGroup: 'Information used to confirm identity', birthDate: 'Date of birth', lastName: 'Last name',
+    birthDateField: "Patient's date of birth", lastNameField: "Patient's last name", lastNamePlaceholder: 'For example: Garcia',
+    verifying: 'Verifying…', seeResults: 'See my results',
+    attemptsLeft: (n: number) => n === 1 ? 'You have 1 attempt left.' : `You have ${n} attempts left.`,
+    mismatch: (n: number) => n === 1 ? 'The information does not match. You have 1 attempt left.' : `The information does not match. You have ${n} attempts left.`,
+    expiredTitle: 'This link is no longer active', expiredText: 'Links are personal and expire after 72 hours, or close if opened in another session.',
+    lockedTitle: 'For your safety, this link was disabled', lockedText: "The attempts to confirm the patient's identity ran out. Request a new link and try again.",
+    otherTitle: 'We could not load your results', otherText: 'Check your connection and try again in a few minutes.',
+    newLink: 'Request a new link on WhatsApp', keyword: 'Revisar Estudios', writeHint: 'Send', writeHintTail: 'and we will reply with a new link.', callHint: 'You can also call',
+    ready: 'Your results are ready', hello: 'Hello', study: 'Imaging study', seeImages: 'See my images',
+    viewerHint: 'The image viewer opens. You can zoom, scroll and switch series with your fingers or the mouse.',
+    report: 'Report', signed: 'Signed', inProgress: 'In progress', signedOn: 'Signed on',
+    reportPending: 'The radiologist has not signed your report yet. As soon as it is ready you will see it right here, with this same link; no need to request another.',
+    others: 'Other shared studies', reportSigned: 'Report signed', reportInProgress: 'Report in progress', see: 'View',
+    session: 'Session active', until: 'until', sessionTail: 'If it closes, open the link you received on WhatsApp again.',
+  },
+};
+type Texts = typeof TEXTS.es;
+
+function browserLang(): Lang {
+  return typeof navigator !== 'undefined' && (navigator.language || '').toLowerCase().startsWith('en') ? 'en' : 'es';
+}
+
+function langOf(data?: PortalData): Lang {
+  return data?.language === 'en' ? 'en' : data?.language === 'es' ? 'es' : browserLang();
+}
 
 type View =
   | { kind: 'loading' }
@@ -41,31 +99,27 @@ function loadPortalSession(): Promise<PortalResponse> {
   return redemptionInFlight ?? operationsApi.portalSession<PortalResponse>();
 }
 
-const dateFormat = new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'long', year: 'numeric' });
-const dateTimeFormat = new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'long', hour: 'numeric', minute: '2-digit' });
-const timeFormat = new Intl.DateTimeFormat('es-MX', { hour: 'numeric', minute: '2-digit' });
-
-function formatStudyDate(value?: string | null): string | undefined {
+function formatStudyDate(value: string | null | undefined, locale: string): string | undefined {
   if (!value) return undefined;
   const date = new Date(/^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T12:00:00` : value);
-  return Number.isNaN(date.getTime()) ? undefined : dateFormat.format(date);
+  return Number.isNaN(date.getTime()) ? undefined : new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long', year: 'numeric' }).format(date);
 }
 
-function formatDateTime(value?: string | null, formatter = dateTimeFormat): string | undefined {
+function formatDateTime(value: string | null | undefined, locale: string, options: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'long', hour: 'numeric', minute: '2-digit' }): string | undefined {
   if (!value) return undefined;
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? undefined : formatter.format(date);
+  return Number.isNaN(date.getTime()) ? undefined : new Intl.DateTimeFormat(locale, options).format(date);
 }
 
 function errorReason(error: unknown): 'expired' | 'other' {
   return error instanceof ApiError && [401, 403, 404, 409].includes(error.status) ? 'expired' : 'other';
 }
 
-function useClinicBrand(): ClinicBrand {
+function useClinicBrand(t: Texts): ClinicBrand {
   const [brand, setBrand] = useState<ClinicBrand>(FALLBACK_BRAND);
   useEffect(() => { loadBrand().then(setBrand); }, []);
   useEffect(() => {
-    document.title = `Resultados · ${brand.clinic_name}`;
+    document.title = `${t.title} · ${brand.clinic_name}`;
     if (brand.icon_url) {
       let link = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
       if (!link) { link = document.createElement('link'); link.rel = 'icon'; document.head.appendChild(link); }
@@ -75,13 +129,15 @@ function useClinicBrand(): ClinicBrand {
     const previous = themeColor?.content;
     if (themeColor) themeColor.content = brand.primary ?? '#0d2b4b';
     return () => { if (themeColor && previous) themeColor.content = previous; };
-  }, [brand]);
+  }, [brand, t]);
   return brand;
 }
 
 export function PortalPage() {
-  const brand = useClinicBrand();
   const [view, setView] = useState<View>({ kind: 'loading' });
+  const lang = langOf(view.kind === 'ready' ? view.data : undefined);
+  const t = TEXTS[lang];
+  const brand = useClinicBrand(t);
   const [logoFailed, setLogoFailed] = useState(false);
 
   useEffect(() => {
@@ -103,7 +159,7 @@ export function PortalPage() {
         const detail = error instanceof ApiError ? (error.details as { detail?: { reason?: string; attempts_left?: number } } | undefined)?.detail : undefined;
         if (error instanceof ApiError && error.status === 403 && detail?.reason !== 'locked') {
           const attemptsLeft = detail?.attempts_left ?? 0;
-          setView({ kind: 'verify', attemptsLeft, message: attemptsLeft === 1 ? 'La información no coincide. Te queda 1 intento.' : `La información no coincide. Te quedan ${attemptsLeft} intentos.` });
+          setView({ kind: 'verify', attemptsLeft, message: TEXTS[browserLang()].mismatch(attemptsLeft) });
           return;
         }
         setView({ kind: 'error', reason: error instanceof ApiError && error.status === 403 ? 'locked' : errorReason(error) });
@@ -113,45 +169,45 @@ export function PortalPage() {
   const themeVars = { '--brand-primary': brand.primary, '--brand-accent': brand.accent } as CSSProperties;
 
   return (
-    <div className="portal-root" style={themeVars}>
+    <div className="portal-root" style={themeVars} lang={lang}>
       <div className="portal-bg" aria-hidden="true" />
       <div className="portal-frame">
         <header className="portal-header portal-rise" style={{ '--i': 0 } as CSSProperties}>
           {brand.logo_url && !logoFailed
             ? <img className="portal-logo" src={brand.logo_url} alt={brand.clinic_name} onError={() => setLogoFailed(true)} />
             : <span className="portal-logo-text"><BelkaLogo size={26} /> {brand.clinic_name}</span>}
-          <span className="portal-tag" title="Enlace personal y cifrado"><ShieldCheck size={14} /> <span>Entrega segura</span></span>
+          <span className="portal-tag" title={t.secureTitle}><ShieldCheck size={14} /> <span>{t.secure}</span></span>
         </header>
 
         <main className="portal-main">
-          {view.kind === 'loading' && <LoadingCard />}
-          {view.kind === 'verify' && <VerifyCard attemptsLeft={view.attemptsLeft} message={view.message} submitting={view.submitting} onSubmit={verify} />}
-          {view.kind === 'error' && <ErrorCard reason={view.reason} brand={brand} />}
-          {view.kind === 'ready' && <Results data={view.data} />}
+          {view.kind === 'loading' && <LoadingCard t={t} />}
+          {view.kind === 'verify' && <VerifyCard attemptsLeft={view.attemptsLeft} message={view.message} submitting={view.submitting} onSubmit={verify} t={t} />}
+          {view.kind === 'error' && <ErrorCard reason={view.reason} brand={brand} t={t} />}
+          {view.kind === 'ready' && <Results data={view.data} t={t} />}
         </main>
 
         <footer className="portal-footer portal-rise" style={{ '--i': 5 } as CSSProperties}>
-          <nav aria-label="Información legal y contacto">
-            {brand.privacy_url && <a href={brand.privacy_url}>Aviso de privacidad</a>}
-            {brand.phone && <span>Tel. {brand.phone}</span>}
+          <nav aria-label={t.legalNav}>
+            {brand.privacy_url && <a href={brand.privacy_url}>{t.privacy}</a>}
+            {brand.phone && <span>{t.tel} {brand.phone}</span>}
             {brand.city && <span>{brand.city}</span>}
           </nav>
-          <p className="portal-powered"><BelkaLogo size={12} /> Tecnología {BRAND.name}</p>
+          <p className="portal-powered"><BelkaLogo size={12} /> {t.powered} {BRAND.name}</p>
         </footer>
       </div>
     </div>
   );
 }
 
-function LoadingCard() {
+function LoadingCard({ t }: { t: Texts }) {
   return (
-    <article className="portal-card portal-rise" aria-busy="true" aria-label="Cargando tus resultados">
+    <article className="portal-card portal-rise" aria-busy="true" aria-label={t.loading}>
       <div className="sk sk--eyebrow" /><div className="sk sk--title" /><div className="sk sk--line" /><div className="sk sk--cta" />
     </article>
   );
 }
 
-function VerifyCard({ attemptsLeft, message, submitting, onSubmit }: { attemptsLeft: number; message?: string; submitting?: boolean; onSubmit: (identity: Identity) => void }) {
+function VerifyCard({ attemptsLeft, message, submitting, onSubmit, t }: { attemptsLeft: number; message?: string; submitting?: boolean; onSubmit: (identity: Identity) => void; t: Texts }) {
   const [method, setMethod] = useState<IdentityMethod>('birth_date');
   const [birthDate, setBirthDate] = useState('');
   const [lastName, setLastName] = useState('');
@@ -167,40 +223,40 @@ function VerifyCard({ attemptsLeft, message, submitting, onSubmit }: { attemptsL
   return (
     <article className="portal-card portal-rise" style={{ '--i': 1 } as CSSProperties}>
       <div className="portal-gate-icon"><LockKeyhole size={24} /></div>
-      <p className="portal-eyebrow">Antes de continuar</p>
-      <h1 className="portal-gate-title">Confirma la identidad del paciente</h1>
-      <p className="portal-gate-text">Este enlace es personal. Para proteger los resultados, escribe la fecha de nacimiento del paciente o su apellido paterno.</p>
+      <p className="portal-eyebrow">{t.gateEyebrow}</p>
+      <h1 className="portal-gate-title">{t.gateTitle}</h1>
+      <p className="portal-gate-text">{t.gateText}</p>
       <form className="portal-form" onSubmit={submit} noValidate>
-        <div className="portal-segment" role="radiogroup" aria-label="Dato para confirmar la identidad">
-          <button type="button" role="radio" aria-checked={method === 'birth_date'} className={method === 'birth_date' ? 'is-active' : ''} onClick={() => setMethod('birth_date')}>Fecha de nacimiento</button>
-          <button type="button" role="radio" aria-checked={method === 'last_name'} className={method === 'last_name' ? 'is-active' : ''} onClick={() => setMethod('last_name')}>Apellido paterno</button>
+        <div className="portal-segment" role="radiogroup" aria-label={t.gateGroup}>
+          <button type="button" role="radio" aria-checked={method === 'birth_date'} className={method === 'birth_date' ? 'is-active' : ''} onClick={() => setMethod('birth_date')}>{t.birthDate}</button>
+          <button type="button" role="radio" aria-checked={method === 'last_name'} className={method === 'last_name' ? 'is-active' : ''} onClick={() => setMethod('last_name')}>{t.lastName}</button>
         </div>
         {method === 'birth_date' ? (
           <label className="portal-field">
-            <span>Fecha de nacimiento del paciente</span>
+            <span>{t.birthDateField}</span>
             <input type="date" value={birthDate} max={today} min="1900-01-01" onChange={(event) => setBirthDate(event.target.value)} autoFocus required />
           </label>
         ) : (
           <label className="portal-field">
-            <span>Apellido paterno del paciente</span>
-            <input type="text" value={lastName} onChange={(event) => setLastName(event.target.value)} autoComplete="family-name" autoCapitalize="words" placeholder="Por ejemplo: García" maxLength={120} autoFocus required />
+            <span>{t.lastNameField}</span>
+            <input type="text" value={lastName} onChange={(event) => setLastName(event.target.value)} autoComplete="family-name" autoCapitalize="words" placeholder={t.lastNamePlaceholder} maxLength={120} autoFocus required />
           </label>
         )}
         {message && <p className="portal-form-error" role="alert">{message}</p>}
         <button type="submit" className="portal-cta" disabled={!canSubmit || submitting}>
-          <span>{submitting ? 'Verificando…' : 'Ver mis resultados'}</span><ArrowRight size={20} />
+          <span>{submitting ? t.verifying : t.seeResults}</span><ArrowRight size={20} />
         </button>
-        {!message && attemptsLeft < 5 && <p className="portal-hint">Te quedan {attemptsLeft} intentos.</p>}
+        {!message && attemptsLeft < 5 && <p className="portal-hint">{t.attemptsLeft(attemptsLeft)}</p>}
       </form>
     </article>
   );
 }
 
-function ErrorCard({ reason, brand }: { reason: 'expired' | 'locked' | 'other'; brand: ClinicBrand }) {
+function ErrorCard({ reason, brand, t }: { reason: 'expired' | 'locked' | 'other'; brand: ClinicBrand; t: Texts }) {
   const copy = {
-    expired: { title: 'Este enlace ya no está activo', text: 'Los enlaces son personales y caducan a las 72 horas, o se cierran si se abren en otra sesión.' },
-    locked: { title: 'Por seguridad, este enlace se desactivó', text: 'Se agotaron los intentos para confirmar la identidad del paciente. Pide un enlace nuevo y vuelve a intentarlo.' },
-    other: { title: 'No pudimos cargar tus resultados', text: 'Revisa tu conexión e inténtalo de nuevo en unos minutos.' },
+    expired: { title: t.expiredTitle, text: t.expiredText },
+    locked: { title: t.lockedTitle, text: t.lockedText },
+    other: { title: t.otherTitle, text: t.otherText },
   }[reason];
   return (
     <article className="portal-card portal-error portal-rise" style={{ '--i': 1 } as CSSProperties}>
@@ -209,66 +265,66 @@ function ErrorCard({ reason, brand }: { reason: 'expired' | 'locked' | 'other'; 
       <p>{copy.text}</p>
       {brand.whatsapp_url && (
         <a className="portal-cta portal-cta--whatsapp" href={brand.whatsapp_url} rel="noopener">
-          <MessageCircle size={20} /><span>Pedir un enlace nuevo por WhatsApp</span>
+          <MessageCircle size={20} /><span>{t.newLink}</span>
         </a>
       )}
       <p className="portal-hint">
-        Escribe <strong>Revisar Estudios</strong> y te responderemos con un enlace nuevo.
-        {brand.phone && <> También puedes llamar al {brand.phone}.</>}
+        {t.writeHint} <strong>{t.keyword}</strong> {t.writeHintTail}
+        {brand.phone && <> {t.callHint} {brand.phone}.</>}
       </p>
     </article>
   );
 }
 
-function Results({ data }: { data: PortalData }) {
+function Results({ data, t }: { data: PortalData; t: Texts }) {
   const studies = data.studies ?? [];
   const primary = studies[0];
   const others = studies.slice(1);
   const report = data.report ?? primary?.report ?? undefined;
-  const description = data.description ?? primary?.description ?? 'Estudio de imagen';
-  const studyDate = formatStudyDate(primary?.study_date);
-  const signedAt = formatDateTime(report?.created_at);
-  const sessionEnds = formatDateTime(data.expires_at, timeFormat);
+  const description = data.description ?? primary?.description ?? t.study;
+  const studyDate = formatStudyDate(primary?.study_date, t.locale);
+  const signedAt = formatDateTime(report?.created_at, t.locale);
+  const sessionEnds = formatDateTime(data.expires_at, t.locale, { hour: 'numeric', minute: '2-digit' });
 
   return (
     <>
       <article className="portal-card portal-rise" style={{ '--i': 1 } as CSSProperties}>
-        <p className="portal-eyebrow">Tus resultados están listos</p>
-        <h1 className="portal-name">Hola, {formatPatientName(data.patient_name)}</h1>
+        <p className="portal-eyebrow">{t.ready}</p>
+        <h1 className="portal-name">{t.hello}, {formatPatientName(data.patient_name)}</h1>
         <ul className="portal-meta">
           <li><Images size={16} /> {description}</li>
           {studyDate && <li><CalendarDays size={16} /> {studyDate}</li>}
         </ul>
-        <a className="portal-cta" href={data.viewer_url}><span>Ver mis imágenes</span><ArrowRight size={20} /></a>
-        <p className="portal-hint">Se abre el visor de imágenes. Puedes acercar, desplazarte y cambiar de serie con los dedos o el ratón.</p>
+        <a className="portal-cta" href={data.viewer_url}><span>{t.seeImages}</span><ArrowRight size={20} /></a>
+        <p className="portal-hint">{t.viewerHint}</p>
       </article>
 
       <section className="portal-card portal-rise" style={{ '--i': 2 } as CSSProperties} aria-labelledby="portal-informe">
         <header className="portal-card-head">
-          <h2 id="portal-informe"><FileText size={18} /> Informe</h2>
+          <h2 id="portal-informe"><FileText size={18} /> {t.report}</h2>
           {report
-            ? <span className="portal-pill portal-pill--ok"><CheckCircle2 size={14} /> Firmado</span>
-            : <span className="portal-pill portal-pill--wait"><Clock3 size={14} /> En proceso</span>}
+            ? <span className="portal-pill portal-pill--ok"><CheckCircle2 size={14} /> {t.signed}</span>
+            : <span className="portal-pill portal-pill--wait"><Clock3 size={14} /> {t.inProgress}</span>}
         </header>
         {report
           ? (report.content_html
             ? <div className="portal-report" dangerouslySetInnerHTML={{ __html: sanitizeReportHtml(report.content_html) }} />
             : <div className="portal-report portal-report--plain">{report.content}</div>)
-          : <p className="portal-empty">El médico radiólogo aún no firma tu informe. En cuanto esté listo lo verás aquí mismo, con este mismo enlace; no necesitas pedir otro.</p>}
-        {report && signedAt && <p className="portal-small">Firmado el {signedAt}</p>}
+          : <p className="portal-empty">{t.reportPending}</p>}
+        {report && signedAt && <p className="portal-small">{t.signedOn} {signedAt}</p>}
       </section>
 
       {others.length > 0 && (
         <section className="portal-card portal-rise" style={{ '--i': 3 } as CSSProperties} aria-labelledby="portal-otros">
-          <header className="portal-card-head"><h2 id="portal-otros"><Images size={18} /> Otros estudios compartidos</h2></header>
+          <header className="portal-card-head"><h2 id="portal-otros"><Images size={18} /> {t.others}</h2></header>
           <ul className="portal-list">
             {others.map((study) => (
               <li key={study.study_id}>
                 <div>
-                  <strong>{study.description ?? 'Estudio de imagen'}</strong>
-                  <span>{[formatStudyDate(study.study_date), study.report_signed ? 'Informe firmado' : 'Informe en proceso'].filter(Boolean).join(' · ')}</span>
+                  <strong>{study.description ?? t.study}</strong>
+                  <span>{[formatStudyDate(study.study_date, t.locale), study.report_signed ? t.reportSigned : t.reportInProgress].filter(Boolean).join(' · ')}</span>
                 </div>
-                <a href={study.viewer_url}>Ver <ArrowRight size={16} /></a>
+                <a href={study.viewer_url}>{t.see} <ArrowRight size={16} /></a>
               </li>
             ))}
           </ul>
@@ -277,7 +333,7 @@ function Results({ data }: { data: PortalData }) {
 
       <p className="portal-session portal-rise" style={{ '--i': 4 } as CSSProperties}>
         <Clock3 size={14} />
-        <span>Sesión activa{sessionEnds ? ` hasta las ${sessionEnds}` : ''} · Si se cierra, vuelve a abrir el enlace que recibiste por WhatsApp.</span>
+        <span>{t.session}{sessionEnds ? ` ${t.until} ${sessionEnds}` : ''} · {t.sessionTail}</span>
       </p>
     </>
   );
