@@ -247,6 +247,7 @@ export const operationsApi = {
   revokeDeliveryConsent: (studyId: string, channel: DeliveryChannel) => apiRequest(`/studies/${studyId}/delivery-consent/${channel}`, { method: 'DELETE' }),
   redeem: <T>(token: string) => required<T>('/portal/redeem', { method: 'POST', json: { token } }),
   portalSession: <T>() => required<T>('/portal/session'),
+  portalVerify: <T>(identity: { birth_date?: string; last_name?: string }) => required<T>('/portal/verify', { method: 'POST', json: identity }),
 
   payerReceivables: (filters: { payer_id?: string; contract_id?: string; status_filter?: string; order_id?: string; encounter_id?: string } = {}) => {
     const query = new URLSearchParams(Object.entries(filters).filter(([, v]) => v !== undefined) as [string, string][]);
