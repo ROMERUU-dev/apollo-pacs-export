@@ -15,8 +15,8 @@ interface SystemStatusState {
 }
 
 const LOADING_STATE: SystemStatusState = {
-  backend: { state: 'loading', message: 'Consultando backend Apollo…' },
-  pacs: { state: 'loading', message: 'Consultando PACS vía Apollo…' },
+  backend: { state: 'loading', message: 'Consultando el servidor…' },
+  pacs: { state: 'loading', message: 'Consultando el PACS…' },
 };
 
 function getErrorMessage(error: unknown): string {
@@ -27,7 +27,7 @@ function getErrorMessage(error: unknown): string {
 function normalizeBackendStatus(): ServiceStatus {
   return {
     state: 'online',
-    message: 'API Apollo respondió correctamente.',
+    message: 'El servidor respondió correctamente.',
   };
 }
 
@@ -79,7 +79,7 @@ function normalizePacsStatus(responseStatus: unknown): ServiceStatus {
 
   return {
     state: 'online',
-    message: 'PACS respondió a través del backend Apollo.',
+    message: 'El PACS respondió correctamente.',
   };
 }
 
@@ -126,10 +126,7 @@ export function SystemStatus() {
   return (
     <section className="system-status" aria-labelledby="system-status-title">
       <div className="section-heading">
-        <div>
-          <p className="eyebrow">Fase 2</p>
-          <h2 id="system-status-title">Estado del sistema</h2>
-        </div>
+        <h2 id="system-status-title">Estado del sistema</h2>
         <button className="refresh-button" type="button" onClick={refresh} disabled={isRefreshing}>
           {isRefreshing ? 'Actualizando…' : 'Refrescar'}
         </button>
@@ -138,7 +135,7 @@ export function SystemStatus() {
       <div className="status-grid">
         <article className="status-card">
           <div>
-            <h3>Apollo Backend</h3>
+            <h3>Servidor</h3>
             <p>{status.backend.message}</p>
           </div>
           <StatusBadge state={status.backend.state} />
@@ -146,7 +143,7 @@ export function SystemStatus() {
 
         <article className="status-card">
           <div>
-            <h3>Orthanc vía Apollo</h3>
+            <h3>PACS (Orthanc)</h3>
             <p>{status.pacs.message}</p>
           </div>
           <StatusBadge state={status.pacs.state} />

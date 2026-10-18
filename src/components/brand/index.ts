@@ -1,0 +1,1 @@
+export { BelkaLogo } from './BelkaLogo';
