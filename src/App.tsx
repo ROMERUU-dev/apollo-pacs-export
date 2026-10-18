@@ -1,7 +1,8 @@
 import { Link, NavLink, Route, Routes } from 'react-router-dom';
 import { BelkaLogo } from './components/brand';
+import radioEmblem from './components/brand/radiodiagnostico-emblema.svg';
 import { SystemStatus } from './components/dashboard';
-import { BRAND } from './brand';
+import { CLINIC } from './brand';
 import { CatalogSettingsPage } from './pages/CatalogSettingsPage';
 import { DoctorPage } from './pages/DoctorPage';
 import { PortalPage } from './pages/PortalPage';
@@ -18,8 +19,8 @@ const PHYSICIAN = ['apollo-physician'];
 function Layout({ children }: { children: React.ReactNode }) {
   const { session } = useSession();
   const can = (roles: string[]) => session?.roles.some((role) => roles.includes(role));
-  return <main className="app-shell"><header className="app-header"><Link className="brand-link" to="/"><BelkaLogo className="brand-squirrel" size={30} /><span><strong>{BRAND.name} <em>{BRAND.suffix}</em></strong><small>{BRAND.tagline}</small></span></Link>
-    <nav>{can(RECEPTION) && <NavLink to="/recepcion">Recepción</NavLink>}{can(CLINICAL) && <NavLink to="/tecnico">Técnico</NavLink>}{can(PHYSICIAN) && <NavLink to="/medico">Médico</NavLink>}{can(CLINICAL) && <NavLink to="/visor">Visor PACS</NavLink>}{can(RECEPTION) && <NavLink to="/cuentas-por-cobrar">Cuentas por cobrar</NavLink>}{can(RECEPTION) && <NavLink to="/configuracion/catalogo">Configuración</NavLink>}</nav><span className="user-chip">{session?.username ?? '…'}</span></header><div className="content-shell">{children}</div></main>;
+  return <main className="app-shell"><header className="app-header"><Link className="brand-link" to="/"><img className="brand-emblem" src={radioEmblem} alt={CLINIC.name} width={40} height={40} /><span className="brand-text"><strong className="brand-clinic">RADIO<em>DIAGNÓSTICO</em></strong><small className="brand-sub">{CLINIC.location}</small></span></Link>
+    <nav>{can(RECEPTION) && <NavLink to="/recepcion">Recepción</NavLink>}{can(CLINICAL) && <NavLink to="/tecnico">Técnico</NavLink>}{can(PHYSICIAN) && <NavLink to="/medico">Médico</NavLink>}{can(CLINICAL) && <NavLink to="/visor">Visor PACS</NavLink>}{can(RECEPTION) && <NavLink to="/cuentas-por-cobrar">Cuentas por cobrar</NavLink>}{can(RECEPTION) && <NavLink to="/configuracion/catalogo">Configuración</NavLink>}</nav><span className="user-chip">{session?.username ?? '…'}</span></header><div className="content-shell">{children}</div><footer className="app-footer">© {new Date().getFullYear()} {CLINIC.name} {CLINIC.location} · impulsado por <BelkaLogo className="footer-sq" size={11} /> belstrel <em>pacs</em></footer></main>;
 }
 
 function Dashboard() {

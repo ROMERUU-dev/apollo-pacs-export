@@ -188,3 +188,18 @@ input[type="checkbox"] { width: 18px; height: 18px; padding: 0; accent-color: va
 .row-dot.in_progress { background: var(--warning); }
 .row-dot.completed { background: var(--success); }
 .row-dot.cancelled, .row-dot.registered { background: #5a6472; }
+
+/* Clinic brand lockup (Radiodiagnóstico + belstrel pacs) */
+.brand-emblem { flex: none; display: block; }
+.brand-text { display: flex; flex-direction: column; gap: 3px; }
+strong.brand-clinic { font-size: 16px; font-weight: 700; line-height: 1.02; letter-spacing: .01em; color: #f2f3f6; }
+.brand-clinic em { color: var(--accent); font-style: normal; }
+.brand-link .brand-platform { display: flex; align-items: center; gap: 4px; margin: 0; font-size: 9px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #7d8488; }
+.brand-link .brand-platform em { color: #ec9a7c; font-style: normal; }
+.brand-sq-mini { flex: none; color: var(--accent); }
+small.brand-sub { margin: 2px 0 0; font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: #8a9097; }
+.app-shell { display: flex; flex-direction: column; }
+.content-shell { flex: 1 0 auto; }
+.app-footer { display: flex; align-items: center; justify-content: center; gap: 5px; padding: 16px 20px 22px; color: #4c535d; font-size: 10px; letter-spacing: .05em; }
+.app-footer em { color: #6f7680; font-style: normal; }
+.footer-sq { flex: none; color: #5c5249; }

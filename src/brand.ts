@@ -13,3 +13,13 @@ export const BRAND = {
 } as const;
 
 export const BRAND_FULL = `${BRAND.name} ${BRAND.suffix}`;
+
+/**
+ * Clinic (customer) brand — shown as the PRIMARY mark everywhere (white-label);
+ * Belstrel is the platform, kept as the small "belstrel pacs" tag. The logo
+ * asset lives in components/brand/radiodiagnostico-emblema.svg.
+ */
+export const CLINIC = {
+  name: 'Radiodiagnóstico',
+  location: 'Puerto Peñasco',
+} as const;
