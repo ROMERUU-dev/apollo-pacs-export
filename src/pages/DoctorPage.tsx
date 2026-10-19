@@ -4,11 +4,12 @@ import {
   Ruler, Triangle, Circle, Pencil, Play,
   FileText, Eye, ExternalLink, Mic, Sparkles, X,
 } from 'lucide-react';
-import { getStudies, launchStudyViewer, type StudySummary } from '../api/studies';
+import { getStudies, launchStudyViewer, safeViewerUrl, type StudySummary } from '../api/studies';
 import { operationsApi, type Order, type Report, type Share } from '../api/operations';
 import { StudyDeliveryDialog } from '../components/studies';
 import { AddOnProcedureDialog } from '../components/addon';
 import { RichReportEditor, REPORT_TEMPLATES, DEFAULT_REPORT_HTML, htmlToPlainText } from '../components/reporter';
+import { useViewerMessages, type ViewerMessage } from '../hooks/useViewerMessages';
 
 const PATIENTS_PANEL_KEY = 'medicalPatientsPanelCollapsed';
 const REPORTER_PANEL_KEY = 'medicalReporterPanelCollapsed';
@@ -47,6 +48,7 @@ export function DoctorPage() {
   const [showTemplates, setShowTemplates] = useState(false);
   const [patientsCollapsed, setPatientsCollapsed] = useState(() => readCollapsed(PATIENTS_PANEL_KEY));
   const [reporterCollapsed, setReporterCollapsed] = useState(() => readCollapsed(REPORTER_PANEL_KEY));
+  const [notice, setNotice] = useState<string>();
   const templatesRef = useRef<HTMLDivElement>(null);
   useEffect(() => { getStudies({ page: 1, pageSize: 100 }).then((r) => { setStudies(r.items); if (r.items[0]) void select(r.items[0]); }).catch((e: Error) => setError(e.message)); }, []);
   useEffect(() => { window.dispatchEvent(new Event('resize')); }, [patientsCollapsed, reporterCollapsed]);
@@ -57,6 +59,7 @@ export function DoctorPage() {
   }, [showTemplates]);
   function togglePatients() { setPatientsCollapsed((value) => { const next = !value; writeCollapsed(PATIENTS_PANEL_KEY, next); return next; }); }
   function toggleReporter() { setReporterCollapsed((value) => { const next = !value; writeCollapsed(REPORTER_PANEL_KEY, next); return next; }); }
+  function expandReporter() { setReporterCollapsed(false); writeCollapsed(REPORTER_PANEL_KEY, false); }
   async function select(study: StudySummary) {
     setSelected(study); setNewLink(undefined); setSelectedOrder(undefined); setViewerUrl(undefined); setPreview(false);
     try {
@@ -72,8 +75,25 @@ export function DoctorPage() {
   async function save(final: boolean) { if (!selected) return; try { const value = await operationsApi.saveReport(selected.id, htmlToPlainText(content), final, reason, content); setReport(value); setReason(''); } catch (e) { setError((e as Error).message); } }
   async function share() { if (!selected) return; try { const value = await operationsApi.createShare(selected.id); setShares(await operationsApi.shares(selected.id)); setNewLink(`${location.origin}${value.redeem_url}`); } catch (e) { setError((e as Error).message); } }
   async function revoke(id: string) { if (!selected) return; await operationsApi.revokeShare(selected.id, id); setShares(await operationsApi.shares(selected.id)); }
-  async function loadViewer() { if (!selected) return; try { const value = await launchStudyViewer(selected.id); setViewerUrl(value.viewerUrl); } catch (e) { setError((e as Error).message); } }
-  async function openViewerTab() { if (!selected) return; try { const url = viewerUrl ?? (await launchStudyViewer(selected.id)).viewerUrl; window.open(url, '_blank', 'noopener,noreferrer'); } catch (e) { setError((e as Error).message); } }
+  async function loadViewer() { if (!selected) return; try { const value = await launchStudyViewer(selected.id); const url = safeViewerUrl(value.viewerUrl); if (!url) throw new Error('Apollo devolvió una URL de visor no segura.'); setViewerUrl(url); } catch (e) { setError((e as Error).message); } }
+  async function openViewerTab() { if (!selected) return; try { const raw = viewerUrl ?? (await launchStudyViewer(selected.id)).viewerUrl; const url = safeViewerUrl(raw); if (!url) throw new Error('Apollo devolvió una URL de visor no segura.'); window.open(url, '_blank', 'noopener,noreferrer'); } catch (e) { setError((e as Error).message); } }
+  // The médico OHIF viewer (embedded iframe or its own tab) posts back which study it is on; mirror
+  // that into the workspace: select the study and open the reporter, or refetch if it isn't loaded.
+  async function handleViewerMessage(message: ViewerMessage) {
+    if (message.type === 'apollo:close-study') { setViewerUrl(undefined); window.focus(); return; }
+    setNotice(undefined);
+    const uid = message.studyInstanceUID;
+    const loaded = studies.find((study) => study.studyInstanceUid === uid);
+    if (loaded) { expandReporter(); await select(loaded); return; }
+    try {
+      const result = await getStudies({ page: 1, pageSize: 100 });
+      setStudies(result.items);
+      const match = result.items.find((study) => study.studyInstanceUid === uid);
+      if (match) { expandReporter(); await select(match); }
+      else setNotice('No encontramos el estudio solicitado por el visor en los pendientes.');
+    } catch (e) { setError((e as Error).message); }
+  }
+  useViewerMessages((message) => void handleViewerMessage(message));
   const templates = selected ? [...REPORT_TEMPLATES].sort((a, b) => Number(b.modality === selected.modality) - Number(a.modality === selected.modality)) : REPORT_TEMPLATES;
   return <div className="screen-page doctor-page"><div className="view-label">LECTURA CLÍNICA</div><div className="screen-heading"><div><h1 className="screen-title">Lectura del radiólogo</h1><p>Pendientes, visor e informe en un solo workspace.</p></div></div><section className={`module-shell doctor-layout ${patientsCollapsed ? 'patients-collapsed' : ''} ${reporterCollapsed ? 'reporter-collapsed' : ''}`}>
     <aside className="reading-queue">
@@ -105,7 +125,7 @@ export function DoctorPage() {
         <div className="report-actions"><button className="secondary-action" onClick={() => void save(false)}>Guardar borrador</button><button className="primary-action" onClick={() => void save(true)}>Firmar</button></div>
         {selectedOrder?.encounter_id && <button className="secondary-action addon-action" onClick={() => setShowAddOn(true)}>＋ Agregar estudio</button>}<button className="primary-action delivery-action" onClick={() => setShowDelivery(true)}>Enviar por correo / WhatsApp</button><button className="share-action" onClick={() => void share()}>Crear enlace manual</button>{newLink && <output className="share-link">{newLink}</output>}<ul className="share-list">{shares.filter((s) => !s.revoked_at).map((s) => <li key={s.id}>Vence {new Date(s.expires_at).toLocaleDateString('es-MX')} <button onClick={() => void revoke(s.id)}>Revocar</button></li>)}</ul></> : <div className="empty-detail">Sin estudio seleccionado</div>}</div>}
     </aside>
-  {error && <div className="inline-notice error doctor-error">{error}</div>}</section>{showDelivery && selected && <StudyDeliveryDialog studyId={selected.id} studyLabel={`${selected.patientName} · ${selected.description}`} onClose={() => setShowDelivery(false)} />}
+  {notice && <div className="inline-notice doctor-error">{notice}</div>}{error && <div className="inline-notice error doctor-error">{error}</div>}</section>{showDelivery && selected && <StudyDeliveryDialog studyId={selected.id} studyLabel={`${selected.patientName} · ${selected.description}`} onClose={() => setShowDelivery(false)} />}
   {showAddOn && selectedOrder?.encounter_id && <AddOnProcedureDialog
     encounterId={selectedOrder.encounter_id}
     patientLabel={selected?.patientName ?? 'Paciente'}
