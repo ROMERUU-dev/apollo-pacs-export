@@ -64,7 +64,12 @@ export function DoctorPage() {
       })
       .catch((e) => { win.close(); setError((e as Error).message); });
   }
-  function openStudy(study: StudySummary) { setNotice(undefined); openViewer(study); void select(study); }
+  function openStudy(study: StudySummary) {
+    setNotice(undefined);
+    void select(study); // always load the report, even for studies without viewable images
+    if (!study.viewerAvailable) { setNotice('Este estudio no tiene imágenes disponibles para el visor.'); return; }
+    openViewer(study);
+  }
   function applyTemplate(html: string) { setContent(html); setSeed((n) => n + 1); setShowTemplates(false); }
   async function save(final: boolean) { if (!selected) return; try { const value = await operationsApi.saveReport(selected.id, htmlToPlainText(content), final, reason, content); setReport(value); setReason(''); } catch (e) { setError((e as Error).message); } }
   async function share() { if (!selected) return; try { const value = await operationsApi.createShare(selected.id); setShares(await operationsApi.shares(selected.id)); setNewLink(`${location.origin}${value.redeem_url}`); } catch (e) { setError((e as Error).message); } }
@@ -91,7 +96,7 @@ export function DoctorPage() {
       <header><h2>Pendientes</h2></header>
       <div className="filter-chips"><button>Modalidad⌄</button><button>Estado⌄</button><button>Prioridad⌄</button></div>
       {studies.map((study) => <button className={`reading-card ${selected?.id === study.id ? 'selected' : ''}`} key={study.id} onClick={() => openStudy(study)} title="Abrir en el visor">
-        <span><i className="modality-chip">{study.modality}</i>{study.status === 'error' && <i className="urgent-chip">Urgente</i>}<i className="reading-card__open" aria-hidden="true">Abrir ↗</i></span>
+        <span><i className="modality-chip">{study.modality}</i>{study.status === 'error' && <i className="urgent-chip">Urgente</i>}{study.viewerAvailable && <i className="reading-card__open" aria-hidden="true">Abrir ↗</i>}</span>
         <strong>{study.description}</strong>
         <small>{study.patientName}{study.accessionNumber ? ` · Accession ${study.accessionNumber}` : ''}</small>
       </button>)}
