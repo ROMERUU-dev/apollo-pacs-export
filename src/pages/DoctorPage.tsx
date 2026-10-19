@@ -60,7 +60,9 @@ export function DoctorPage() {
       .then((value) => {
         const url = safeViewerUrl(value.viewerUrl);
         if (!url) throw new Error('Apollo devolvió una URL de visor no segura.');
-        win.location.href = url;
+        // Carry the backend study id so the viewer's report panel can load/save this study's report.
+        const sep = url.includes('?') ? '&' : '?';
+        win.location.href = `${url}${sep}apolloStudyId=${encodeURIComponent(study.id)}`;
       })
       .catch((e) => { win.close(); setError((e as Error).message); });
   }
