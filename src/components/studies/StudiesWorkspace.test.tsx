@@ -3,7 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { getStudies, launchStudyViewer } from '../../api/studies';
 import { StudiesWorkspace } from './StudiesWorkspace';
 
-vi.mock('../../api/studies', () => ({
+vi.mock('../../api/studies', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../api/studies')>()),
   getStudies: vi.fn(),
   launchStudyViewer: vi.fn(),
 }));
