@@ -1,6 +1,6 @@
 import { type FormEvent, useCallback, useEffect, useState } from 'react';
 import './studies.css';
-import { getStudies, launchStudyViewer } from '../../api/studies';
+import { getStudies, launchStudyViewer, safeViewerUrl } from '../../api/studies';
 import type { PaginatedStudies, StudySearchParams, StudySummary } from '../../api/studies';
 import type { StudyStatus } from '../../models';
 import { EmptyState, ErrorState, LoadingState } from '../states';
@@ -47,17 +47,6 @@ function formatDate(value?: string): string {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(date);
-}
-
-function safeViewerUrl(value?: string): string | undefined {
-  if (!value) return undefined;
-  if (value.startsWith('/') && !value.startsWith('//')) return value;
-  try {
-    const url = new URL(value);
-    return ['http:', 'https:'].includes(url.protocol) ? url.toString() : undefined;
-  } catch {
-    return undefined;
-  }
 }
 
 export function StudiesWorkspace() {
