@@ -1,7 +1,6 @@
-import { Link, NavLink, Route, Routes } from 'react-router-dom';
+import { Link, Navigate, NavLink, Route, Routes } from 'react-router-dom';
 import { BelkaLogo } from './components/brand';
 import radioEmblem from './components/brand/radiodiagnostico-emblema.svg';
-import { SystemStatus } from './components/dashboard';
 import { CLINIC } from './brand';
 import { CatalogSettingsPage } from './pages/CatalogSettingsPage';
 import { DoctorPage } from './pages/DoctorPage';
@@ -23,24 +22,27 @@ function Layout({ children }: { children: React.ReactNode }) {
     <nav>{can(RECEPTION) && <NavLink to="/recepcion">Recepción</NavLink>}{can(CLINICAL) && <NavLink to={can(PHYSICIAN) ? '/medico' : '/tecnico'}>Worklist</NavLink>}{can(RECEPTION) && <NavLink to="/cuentas-por-cobrar">Cuentas por cobrar</NavLink>}{can(RECEPTION) && <NavLink to="/configuracion/catalogo">Configuración</NavLink>}</nav><span className="user-chip">{session?.username ?? '…'}</span></header><div className="content-shell">{children}</div><footer className="app-footer">© {new Date().getFullYear()} {CLINIC.name} {CLINIC.location} · impulsado por <BelkaLogo className="footer-sq" size={11} /> belstrel <em>pacs</em></footer></main>;
 }
 
-function Dashboard() {
+// Home ("/") no longer shows a landing page; it sends each user straight to their worklist.
+function RoleHome() {
   const { session, error } = useSession();
-  const cards = [
-    { path: '/recepcion', name: 'Recepción', role: 'apollo-receptionist', text: 'Pacientes, catálogo, cotizaciones y caja.' },
-    { path: '/tecnico', name: 'Técnico', role: 'apollo-technician', text: 'Worklist, estudios y adquisición.' },
-    { path: '/medico', name: 'Médico', role: 'apollo-physician', text: 'Lectura, reportes y enlaces temporales.' },
-    { path: '/visor', name: 'Visor PACS', role: 'apollo-technician', text: 'Imágenes DICOM del estudio autorizado.' },
-    { path: '/configuracion/catalogo', name: 'Configuración', role: 'apollo-receptionist', text: 'Catálogo clínico: Offerings, procedimientos, composición y precio base.' },
-    { path: '/cuentas-por-cobrar', name: 'Cuentas por cobrar', role: 'apollo-receptionist', text: 'Ledger de dependencias: receivables, lotes de presentación, pagos y campañas.' },
-  ];
-  return <><div className="screen-heading"><h1 className="screen-title">Centro de operación</h1></div>{error && <p className="alert alert--error">{error}</p>}<SystemStatus /><section className="screen-grid">{cards.filter((card) => session?.roles.includes(card.role) || (card.path === '/visor' && session?.roles.includes('apollo-physician'))).map((card) => <Link className="screen-card" to={card.path} key={card.path}><strong>{card.name}</strong><p>{card.text}</p><span>Abrir →</span></Link>)}</section></>;
+  if (error) return <section className="panel"><p className="alert alert--error">{error}</p></section>;
+  if (!session) return <section className="panel">Cargando…</section>;
+  const roles = session.roles ?? [];
+  const to = roles.includes('apollo-physician')
+    ? '/medico'
+    : roles.includes('apollo-technician')
+      ? '/tecnico'
+      : roles.includes('apollo-receptionist')
+        ? '/recepcion'
+        : '/medico';
+  return <Navigate to={to} replace />;
 }
 
 function App() {
   return <Routes>
     <Route path="/portal" element={<PortalPage />} />
     <Route path="*" element={<SessionProvider><Layout><Routes>
-      <Route path="/" element={<Dashboard />} />
+      <Route path="/" element={<RoleHome />} />
       <Route path="/recepcion" element={<RoleRoute roles={RECEPTION}><ReceptionPage /></RoleRoute>} />
       <Route path="/tecnico" element={<RoleRoute roles={CLINICAL}><TechnicalPage /></RoleRoute>} />
       <Route path="/medico" element={<RoleRoute roles={PHYSICIAN}><DoctorPage /></RoleRoute>} />
