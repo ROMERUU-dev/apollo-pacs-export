@@ -102,7 +102,31 @@ function reportFor(studyId: string, body?: { content?: string; content_html?: st
   return { study_id: studyId, versions: [version], latest: version, final: status === 'final' ? version : undefined };
 }
 
-function route(path: string, method: string, body: unknown): { data: unknown; headers?: Record<string, string> } | undefined {
+const TODAY = new Date().toISOString().slice(0, 10);
+const PORTAL_BIRTH_DATE = '1990-05-14'; // fecha de nacimiento del paciente demo (compuerta del portal)
+let portalVerified = false;
+let portalAttempts = 0;
+const PORTAL_SESSION = {
+  study_id: 'st-1', study_instance_uid: '1.2.3.1', description: 'Ultrasonido abdominal completo', patient_name: 'GARCIA LOPEZ^MARIA FERNANDA',
+  report: { id: 'rep-1', study_id: 'st-1', version: 1, status: 'final', content: 'HALLAZGOS: Hígado de tamaño y ecogenicidad normales. Vía biliar no dilatada. IMPRESIÓN: Estudio dentro de límites normales.', content_html: REPORT_SEED['st-1'], author: 'dra.demo', signed_by: 'dra.demo', created_at: iso(12, 10) },
+  viewer_url: DEMO_VIEWER, expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+  studies: [
+    { study_id: 'st-1', study_instance_uid: '1.2.3.1', description: 'Ultrasonido abdominal completo', study_date: TODAY, report_signed: true, viewer_url: DEMO_VIEWER },
+    { study_id: 'st-3', study_instance_uid: '1.2.3.3', description: 'Radiografía de tórax PA', study_date: '2026-09-02', report_signed: false, viewer_url: DEMO_VIEWER },
+  ],
+};
+
+function route(path: string, method: string, body: unknown): { data: unknown; headers?: Record<string, string>; status?: number } | undefined {
+  if (path === '/portal/redeem' || path === '/portal/session') {
+    return { data: portalVerified ? PORTAL_SESSION : { verification_required: true, method: 'birth_date', attempts_left: 5 - portalAttempts, methods: ['birth_date', 'last_name'], expires_at: PORTAL_SESSION.expires_at } };
+  }
+  if (path === '/portal/verify') {
+    const identity = (body as { birth_date?: string; last_name?: string } | undefined) ?? {};
+    if (identity.birth_date === PORTAL_BIRTH_DATE || (identity.last_name ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase() === 'garcia') { portalVerified = true; return { data: PORTAL_SESSION }; }
+    portalAttempts += 1;
+    const attemptsLeft = Math.max(0, 5 - portalAttempts);
+    return { status: 403, data: { detail: { reason: attemptsLeft === 0 ? 'locked' : 'mismatch', attempts_left: attemptsLeft } } };
+  }
   if (path === '/session') return { data: SESSION };
   if (path === '/health') return { data: HEALTH };
   if (path === '/pacs/health') return { data: PACS_HEALTH };
@@ -165,7 +189,7 @@ export function installDemoServer(): void {
     const result = route(path, method, body);
     const payload = result?.data;
     return new Response(payload === undefined ? '' : JSON.stringify(payload), {
-      status: 200,
+      status: result?.status ?? 200,
       headers: { 'Content-Type': 'application/json', ...(result?.headers ?? {}) },
     });
   }) as typeof fetch;
