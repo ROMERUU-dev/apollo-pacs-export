@@ -249,6 +249,7 @@ export const operationsApi = {
   redeem: <T>(token: string) => required<T>('/portal/redeem', { method: 'POST', json: { token } }),
   portalSession: <T>() => required<T>('/portal/session'),
   portalVerify: <T>(identity: { birth_date?: string; last_name?: string }) => required<T>('/portal/verify', { method: 'POST', json: identity }),
+  portalConsent: <T>(acknowledgement: { accept_notice: boolean; accept_consent: boolean }) => required<T>('/portal/consent', { method: 'POST', json: acknowledgement }),
 
   payerReceivables: (filters: { payer_id?: string; contract_id?: string; status_filter?: string; order_id?: string; encounter_id?: string } = {}) => {
     const query = new URLSearchParams(Object.entries(filters).filter(([, v]) => v !== undefined) as [string, string][]);

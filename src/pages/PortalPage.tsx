@@ -14,7 +14,9 @@ interface PortalStudy { study_id: string; study_instance_uid: string; descriptio
 interface PortalData { study_id: string; patient_name: string; description?: string | null; viewer_url: string; expires_at: string; report?: PortalReport | null; studies?: PortalStudy[]; language?: string }
 /** Before the identity check the API returns only the gate state: no name, no study, no report. */
 interface PortalGate { verification_required: true; methods?: string[]; attempts_left: number; expires_at: string }
-type PortalResponse = PortalGate | PortalData;
+/** After the identity check but before any study: the patient must grant consent for the notice in force. */
+interface PortalConsentGate { consent_required: true; notice_version: string; expires_at: string }
+type PortalResponse = PortalGate | PortalConsentGate | PortalData;
 type IdentityMethod = 'birth_date' | 'last_name';
 type Identity = { birth_date: string } | { last_name: string };
 
@@ -31,6 +33,13 @@ const TEXTS = {
     gateGroup: 'Dato para confirmar la identidad', birthDate: 'Fecha de nacimiento', lastName: 'Apellido paterno',
     birthDateField: 'Fecha de nacimiento del paciente', lastNameField: 'Apellido paterno del paciente', lastNamePlaceholder: 'Por ejemplo: García',
     verifying: 'Verificando…', seeResults: 'Ver mis resultados',
+    consentEyebrow: 'Antes de ver tus estudios', consentTitle: 'Tu consentimiento',
+    consentIntro: 'Para mostrarte tus imágenes e informes tratamos tus datos personales sensibles de salud y te los entregamos de forma digital. Lee el Aviso de Privacidad y confirma tu consentimiento para continuar.',
+    consentReadLink: 'Leer el Aviso de Privacidad',
+    consentReadNotice: 'He leído el Aviso de Privacidad',
+    consentGrant: 'Otorgo mi consentimiento expreso para el tratamiento de mis datos sensibles de salud y la entrega digital de mis estudios',
+    consentCta: 'Acepto y continúo', consentSubmitting: 'Guardando…',
+    consentError: 'No pudimos registrar tu consentimiento. Inténtalo de nuevo.',
     attemptsLeft: (n: number) => n === 1 ? 'Te queda 1 intento.' : `Te quedan ${n} intentos.`,
     mismatch: (n: number) => n === 1 ? 'La información no coincide. Te queda 1 intento.' : `La información no coincide. Te quedan ${n} intentos.`,
     expiredTitle: 'Este enlace ya no está activo', expiredText: 'Los enlaces son personales y caducan a las 72 horas, o se cierran si se abren en otra sesión.',
@@ -52,6 +61,13 @@ const TEXTS = {
     gateGroup: 'Information used to confirm identity', birthDate: 'Date of birth', lastName: 'Last name',
     birthDateField: "Patient's date of birth", lastNameField: "Patient's last name", lastNamePlaceholder: 'For example: Garcia',
     verifying: 'Verifying…', seeResults: 'See my results',
+    consentEyebrow: 'Before you see your studies', consentTitle: 'Your consent',
+    consentIntro: 'To show your images and reports we process your sensitive personal health data and deliver it to you digitally. Read the Privacy Notice and confirm your consent to continue.',
+    consentReadLink: 'Read the Privacy Notice',
+    consentReadNotice: 'I have read the Privacy Notice',
+    consentGrant: 'I give my express consent for the processing of my sensitive health data and the digital delivery of my studies',
+    consentCta: 'I accept and continue', consentSubmitting: 'Saving…',
+    consentError: 'We could not record your consent. Please try again.',
     attemptsLeft: (n: number) => n === 1 ? 'You have 1 attempt left.' : `You have ${n} attempts left.`,
     mismatch: (n: number) => n === 1 ? 'The information does not match. You have 1 attempt left.' : `The information does not match. You have ${n} attempts left.`,
     expiredTitle: 'This link is no longer active', expiredText: 'Links are personal and expire after 72 hours, or close if opened in another session.',
@@ -79,11 +95,23 @@ function langOf(data?: PortalData): Lang {
 type View =
   | { kind: 'loading' }
   | { kind: 'verify'; attemptsLeft: number; message?: string; submitting?: boolean }
+  | { kind: 'consent'; noticeVersion: string; submitting?: boolean; error?: boolean }
   | { kind: 'ready'; data: PortalData }
   | { kind: 'error'; reason: 'expired' | 'locked' | 'other' };
 
 function isGate(response: PortalResponse): response is PortalGate {
   return (response as PortalGate).verification_required === true;
+}
+
+function isConsentGate(response: PortalResponse): response is PortalConsentGate {
+  return (response as PortalConsentGate).consent_required === true;
+}
+
+/** Map an API response to the screen it should show: identity gate, consent gate, or the results. */
+function viewFor(response: PortalResponse): View {
+  if (isGate(response)) return { kind: 'verify', attemptsLeft: response.attempts_left };
+  if (isConsentGate(response)) return { kind: 'consent', noticeVersion: response.notice_version };
+  return { kind: 'ready', data: response };
 }
 
 let redemptionInFlight: Promise<PortalResponse> | undefined;
@@ -147,14 +175,14 @@ export function PortalPage() {
 
   useEffect(() => {
     loadPortalSession()
-      .then((response) => setView(isGate(response) ? { kind: 'verify', attemptsLeft: response.attempts_left } : { kind: 'ready', data: response }))
+      .then((response) => setView(viewFor(response)))
       .catch((error: unknown) => setView({ kind: 'error', reason: errorReason(error) }));
   }, []);
 
   const verify = (identity: Identity) => {
     setView((current) => (current.kind === 'verify' ? { ...current, submitting: true, message: undefined } : current));
-    operationsApi.portalVerify<PortalData>(identity)
-      .then((data) => setView({ kind: 'ready', data }))
+    operationsApi.portalVerify<PortalResponse>(identity)
+      .then((response) => setView(viewFor(response)))
       .catch((error: unknown) => {
         const detail = error instanceof ApiError ? (error.details as { detail?: { reason?: string; attempts_left?: number } } | undefined)?.detail : undefined;
         if (error instanceof ApiError && error.status === 403 && detail?.reason !== 'locked') {
@@ -163,6 +191,20 @@ export function PortalPage() {
           return;
         }
         setView({ kind: 'error', reason: error instanceof ApiError && error.status === 403 ? 'locked' : errorReason(error) });
+      });
+  };
+
+  const grantConsent = () => {
+    setView((current) => (current.kind === 'consent' ? { ...current, submitting: true, error: false } : current));
+    operationsApi.portalConsent<PortalData>({ accept_notice: true, accept_consent: true })
+      .then((data) => setView({ kind: 'ready', data }))
+      .catch((error: unknown) => {
+        // A revoked or expired link is terminal; anything else keeps the consent screen so the patient can retry.
+        if (error instanceof ApiError && [401, 404, 409].includes(error.status)) {
+          setView({ kind: 'error', reason: 'expired' });
+          return;
+        }
+        setView((current) => (current.kind === 'consent' ? { ...current, submitting: false, error: true } : current));
       });
   };
 
@@ -182,6 +224,7 @@ export function PortalPage() {
         <main className="portal-main">
           {view.kind === 'loading' && <LoadingCard t={t} />}
           {view.kind === 'verify' && <VerifyCard attemptsLeft={view.attemptsLeft} message={view.message} submitting={view.submitting} onSubmit={verify} t={t} />}
+          {view.kind === 'consent' && <ConsentCard submitting={view.submitting} error={view.error} onSubmit={grantConsent} brand={brand} t={t} />}
           {view.kind === 'error' && <ErrorCard reason={view.reason} brand={brand} t={t} />}
           {view.kind === 'ready' && <Results data={view.data} t={t} />}
         </main>
@@ -247,6 +290,45 @@ function VerifyCard({ attemptsLeft, message, submitting, onSubmit, t }: { attemp
           <span>{submitting ? t.verifying : t.seeResults}</span><ArrowRight size={20} />
         </button>
         {!message && attemptsLeft < 5 && <p className="portal-hint">{t.attemptsLeft(attemptsLeft)}</p>}
+      </form>
+    </article>
+  );
+}
+
+function ConsentCard({ submitting, error, onSubmit, brand, t }: { submitting?: boolean; error?: boolean; onSubmit: () => void; brand: ClinicBrand; t: Texts }) {
+  const [readNotice, setReadNotice] = useState(false);
+  const [acceptConsent, setAcceptConsent] = useState(false);
+  const privacyUrl = brand.privacy_url ?? FALLBACK_BRAND.privacy_url ?? '/privacidad';
+  const canSubmit = readNotice && acceptConsent;
+
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    if (!canSubmit || submitting) return;
+    onSubmit();
+  };
+
+  return (
+    <article className="portal-card portal-rise" style={{ '--i': 1 } as CSSProperties}>
+      <div className="portal-gate-icon"><ShieldCheck size={24} /></div>
+      <p className="portal-eyebrow">{t.consentEyebrow}</p>
+      <h1 className="portal-gate-title">{t.consentTitle}</h1>
+      <p className="portal-gate-text">{t.consentIntro}</p>
+      <a className="portal-consent-link" href={privacyUrl} target="_blank" rel="noopener noreferrer">
+        <FileText size={16} /> <span>{t.consentReadLink}</span>
+      </a>
+      <form className="portal-form" onSubmit={submit} noValidate>
+        <label className="portal-check">
+          <input type="checkbox" checked={readNotice} onChange={(event) => setReadNotice(event.target.checked)} />
+          <span>{t.consentReadNotice}</span>
+        </label>
+        <label className="portal-check">
+          <input type="checkbox" checked={acceptConsent} onChange={(event) => setAcceptConsent(event.target.checked)} />
+          <span>{t.consentGrant}</span>
+        </label>
+        {error && <p className="portal-form-error" role="alert">{t.consentError}</p>}
+        <button type="submit" className="portal-cta" disabled={!canSubmit || submitting}>
+          <span>{submitting ? t.consentSubmitting : t.consentCta}</span><ArrowRight size={20} />
+        </button>
       </form>
     </article>
   );
